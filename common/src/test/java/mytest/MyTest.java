@@ -1,6 +1,6 @@
-package io.netty.util;
+package mytest;
 
-import io.netty.util.RecyclerTest.HandledObject;
+import io.netty.util.Recycler;
 import org.junit.Test;
 
 /**
@@ -11,7 +11,7 @@ public class MyTest {
 
     @Test
     public void test() {
-        Recycler<HandledObject>  recycler = newRecycler();
+        Recycler<HandledObject> recycler = newRecycler();
         recycler.get();
         System.out.println("========================");
 

@@ -79,7 +79,7 @@ public abstract class Recycler<T> {
                         NettyRuntime.availableProcessors() * 2));
 
         LINK_CAPACITY = safeFindNextPositivePowerOfTwo(
-                max(SystemPropertyUtil.getInt("io.netty.recycler.linkCapacity", 16), 16));
+                max(SystemPropertyUtil.getInt("io.netty.recycler.linkCapacity", 4), 4));
 
         // By default we allow one push to a Recycler for each 8th try on handles that were never recycled before.
         // This should help to slowly increase the capacity of the recycler while not be too sensitive to allocation
@@ -199,10 +199,10 @@ public abstract class Recycler<T> {
     }
 
     static final class DefaultHandle<T> implements Handle<T> {
-        private int lastRecycledId;
-        private int recycleId;
+        private int lastRecycledId; //用于标识最近被哪个线程回收，=回收线程Id（WeakOrderQueue#id），在没被回收前是0
+        private int recycleId;//用于标识最终被哪个线程回收，在没被回收前是0
 
-        boolean hasBeenRecycled;
+        boolean hasBeenRecycled;  //是否已经被回收
 
         private Stack<?> stack;
         private Object value;
@@ -353,7 +353,9 @@ public abstract class Recycler<T> {
 
             Link tail = this.tail;
             int writeIndex;
+            // 如果链表尾部的 Link 已经写满，那么再新建一个 Link 追加到链表尾部
             if ((writeIndex = tail.get()) == LINK_CAPACITY) {
+                // 检查是否超过对应 Stack 可以存放的其他线程帮助回收的最大对象数
                 if (!head.reserveSpace(LINK_CAPACITY)) {
                     // Drop it.
                     return;
@@ -381,11 +383,13 @@ public abstract class Recycler<T> {
             if (head == null) {
                 return false;
             }
-
+            //是否读到末尾
             if (head.readIndex == LINK_CAPACITY) {
                 if (head.next == null) {
+                    //整个link链表没有待回收对象了已经
                     return false;
                 }
+                //head指针向后移动
                 this.head.link = head = head.next;
                 this.head.reclaimSpace(LINK_CAPACITY);
             }
@@ -400,7 +404,7 @@ public abstract class Recycler<T> {
             final int dstSize = dst.size;
             final int expectedCapacity = dstSize + srcSize;
 
-            if (expectedCapacity > dst.elements.length) {
+            if (expectedCapacity > dst.elements.length) {//如果大于stack的容量，对stack扩容
                 final int actualCapacity = dst.increaseCapacity(expectedCapacity);
                 srcEnd = min(srcStart + actualCapacity - dstSize, srcEnd);
             }
@@ -411,27 +415,33 @@ public abstract class Recycler<T> {
                 int newDstSize = dstSize;
                 for (int i = srcStart; i < srcEnd; i++) {
                     DefaultHandle element = srcElems[i];
+                    //recycleId == 0 表示对象还没有被真正的回收到stack中
                     if (element.recycleId == 0) {
+                        //设置recycleId 表明是被哪个weakOrderQueue回收的
                         element.recycleId = element.lastRecycledId;
                     } else if (element.recycleId != element.lastRecycledId) {
                         throw new IllegalStateException("recycled already");
                     }
+                    //对象转移后需要置空Link节点对应的位置
                     srcElems[i] = null;
 
+                    //进行回收频率控制
                     if (dst.dropHandle(element)) {
                         // Drop the object.
                         continue;
                     }
+                    //该handler在被回收对象回收的时候，会将其stack置为null，防止极端情况下，创建线程挂掉，对应stack无法被GC
                     element.stack = dst;
+                    //此刻handler才真正的被回收到所属stack中
                     dstElems[newDstSize ++] = element;
                 }
 
                 if (srcEnd == LINK_CAPACITY && head.next != null) {
-                    // Add capacity back as the Link is GCed.
+                    // Add capacity back as the Link is GCed. 如果当前Link已经被回收完毕，且link链表还有后续节点，则更新head指针
                     this.head.reclaimSpace(LINK_CAPACITY);
                     this.head.link = head.next;
                 }
-
+                //更新当前回收Link的readIndex
                 head.readIndex = srcEnd;
                 if (dst.size == newDstSize) {
                     return false;
@@ -543,29 +553,37 @@ public abstract class Recycler<T> {
         boolean scavengeSome() {
             WeakOrderQueue prev;
             WeakOrderQueue cursor = this.cursor;
+            //在stack初始化完成后，cursor，prev,head等指针全部是null
+            //这里如果cursor == null 意味着当前stack第一次开始扫描weakOrderQueue链表
             if (cursor == null) {
                 prev = null;
                 cursor = head;
                 if (cursor == null) {
+                    //如果 head 指针指向为空，说明当前 WeakOrderQueue 链表是空的，此时没有任何回收线程在回收对象
                     return false;
                 }
             } else {
+                //获取prev指针，用于操作链表（删除当前cursor节点）
                 prev = this.prev;
             }
 
             boolean success = false;
             do {
+                //将weakOrderQueue链表中当前节点中包含的待回收对象，转移到当前stack中，一次转移一个link
                 if (cursor.transfer(this)) {
                     success = true;
                     break;
                 }
+                //如果当前cursor节点没有待回收对象可转移，那么就继续遍历链表获取下一个weakOrderQueue节点
                 WeakOrderQueue next = cursor.next;
+                //如果当前weakOrderQueue对应的回收线程已经挂掉了
                 if (cursor.owner.get() == null) {
                     // If the thread associated with the queue is gone, unlink it, after
                     // performing a volatile read to confirm there is no data left to collect.
                     // We never unlink the first queue, as we don't want to synchronize on updating the head.
+                    // 判断当前weakOrderQueue节点是否还有可回收对象
                     if (cursor.hasFinalData()) {
-                        for (;;) {
+                        for (;;) { //回收weakOrderQueue中最后一点可回收对象，因为对应的回收线程已经死掉了，这个weakOrderQueue不会再有任何对象了
                             if (cursor.transfer(this)) {
                                 success = true;
                             } else {
@@ -573,7 +591,8 @@ public abstract class Recycler<T> {
                             }
                         }
                     }
-
+                    //回收线程已死，对应的weakOrderQueue节点中的最后一点待回收对象也已经回收完毕，就需要将当前节点从链表中删除。unlink当前cursor节点
+                    //利用prev指针删除cursor节点
                     if (prev != null) {
                         prev.setNext(next);
                     }
@@ -647,11 +666,12 @@ public abstract class Recycler<T> {
 
             queue.add(item);
         }
-
+        //控制回收频率,默认每 8 个对象回收 1 个
         boolean dropHandle(DefaultHandle<?> handle) {
             if (!handle.hasBeenRecycled) {
                 if ((++handleRecycleCount & ratioMask) != 0) {
                     // Drop the object.
+                    System.err.println("[debug] haha drop object "+ handle.value);
                     return true;
                 }
                 handle.hasBeenRecycled = true;
