@@ -79,7 +79,7 @@ public abstract class Recycler<T> {
                         NettyRuntime.availableProcessors() * 2));
 
         LINK_CAPACITY = safeFindNextPositivePowerOfTwo(
-                max(SystemPropertyUtil.getInt("io.netty.recycler.linkCapacity", 4), 4));
+                max(SystemPropertyUtil.getInt("io.netty.recycler.linkCapacity", 16), 16));
 
         // By default we allow one push to a Recycler for each 8th try on handles that were never recycled before.
         // This should help to slowly increase the capacity of the recycler while not be too sensitive to allocation
@@ -119,9 +119,9 @@ public abstract class Recycler<T> {
         protected void onRemoval(Stack<T> value) {
             // Let us remove the WeakOrderQueue from the WeakHashMap directly if its safe to remove some overhead
             if (value.threadRef.get() == Thread.currentThread()) {
-               if (DELAYED_RECYCLED.isSet()) {
-                   DELAYED_RECYCLED.get().remove(value);
-               }
+                if (DELAYED_RECYCLED.isSet()) {
+                    DELAYED_RECYCLED.get().remove(value);
+                }
             }
         }
     };
@@ -199,7 +199,7 @@ public abstract class Recycler<T> {
     }
 
     static final class DefaultHandle<T> implements Handle<T> {
-        private int lastRecycledId; //用于标识最近被哪个线程回收，=回收线程Id（WeakOrderQueue#id），在没被回收前是0
+        private int lastRecycledId; //用于标识最近被哪个线程回收，在没被回收前是0
         private int recycleId;//用于标识最终被哪个线程回收，在没被回收前是0
 
         boolean hasBeenRecycled;  //是否已经被回收
@@ -228,11 +228,11 @@ public abstract class Recycler<T> {
 
     private static final FastThreadLocal<Map<Stack<?>, WeakOrderQueue>> DELAYED_RECYCLED =
             new FastThreadLocal<Map<Stack<?>, WeakOrderQueue>>() {
-        @Override
-        protected Map<Stack<?>, WeakOrderQueue> initialValue() {
-            return new WeakHashMap<Stack<?>, WeakOrderQueue>();
-        }
-    };
+                @Override
+                protected Map<Stack<?>, WeakOrderQueue> initialValue() {
+                    return new WeakHashMap<Stack<?>, WeakOrderQueue>();
+                }
+            };
 
     // a queue that makes only moderate guarantees about visibility: items are seen in the correct order,
     // but we aren't absolutely guaranteed to ever see anything at all, thereby keeping the queue cheap to maintain
@@ -289,7 +289,7 @@ public abstract class Recycler<T> {
 
             static boolean reserveSpace(AtomicInteger availableSharedCapacity, int space) {
                 assert space >= 0;
-                for (;;) {
+                for (; ; ) {
                     int available = availableSharedCapacity.get();
                     if (available < space) {
                         return false;
@@ -349,7 +349,7 @@ public abstract class Recycler<T> {
         }
 
         void add(DefaultHandle<?> handle) {
-            handle.lastRecycledId = id;
+            handle.lastRecycledId = id;//这里的id WeakOrderQueue.id
 
             Link tail = this.tail;
             int writeIndex;
@@ -357,6 +357,7 @@ public abstract class Recycler<T> {
             if ((writeIndex = tail.get()) == LINK_CAPACITY) {
                 // 检查是否超过对应 Stack 可以存放的其他线程帮助回收的最大对象数
                 if (!head.reserveSpace(LINK_CAPACITY)) {
+                    System.err.println("[debug] [" + Thread.currentThread().getName() + "] WeakOrderQueue.add - drop handle");
                     // Drop it.
                     return;
                 }
@@ -383,8 +384,9 @@ public abstract class Recycler<T> {
             if (head == null) {
                 return false;
             }
-            //是否读到末尾
+            //是否读到link容量
             if (head.readIndex == LINK_CAPACITY) {
+                System.err.println("[debug] [" + Thread.currentThread().getName() + "] readIndex equals LINK_CAPACITY");
                 if (head.next == null) {
                     //整个link链表没有待回收对象了已经
                     return false;
@@ -394,17 +396,19 @@ public abstract class Recycler<T> {
                 this.head.reclaimSpace(LINK_CAPACITY);
             }
 
-            final int srcStart = head.readIndex;
-            int srcEnd = head.get();
+            final int srcStart = head.readIndex; //开始
+            int srcEnd = head.get();//head link 的结尾
             final int srcSize = srcEnd - srcStart;
             if (srcSize == 0) {
+                System.err.println("[debug] [" + Thread.currentThread().getName() + "] transfer failed srcEnd==srcStart!");
                 return false;
             }
 
             final int dstSize = dst.size;
             final int expectedCapacity = dstSize + srcSize;
 
-            if (expectedCapacity > dst.elements.length) {//如果大于stack的容量，对stack扩容
+            //如果大于stack的容量，对stack扩容
+            if (expectedCapacity > dst.elements.length) {
                 final int actualCapacity = dst.increaseCapacity(expectedCapacity);
                 srcEnd = min(srcStart + actualCapacity - dstSize, srcEnd);
             }
@@ -422,7 +426,7 @@ public abstract class Recycler<T> {
                     } else if (element.recycleId != element.lastRecycledId) {
                         throw new IllegalStateException("recycled already");
                     }
-                    //对象转移后需要置空Link节点对应的位置
+                    //对象转移，先置空link节点对应的位置
                     srcElems[i] = null;
 
                     //进行回收频率控制
@@ -433,16 +437,18 @@ public abstract class Recycler<T> {
                     //该handler在被回收对象回收的时候，会将其stack置为null，防止极端情况下，创建线程挂掉，对应stack无法被GC
                     element.stack = dst;
                     //此刻handler才真正的被回收到所属stack中
-                    dstElems[newDstSize ++] = element;
+                    dstElems[newDstSize++] = element;
                 }
 
+                // 如果当前Link已经被回收完毕，且link链表还有后续节点，则更新head指针
                 if (srcEnd == LINK_CAPACITY && head.next != null) {
-                    // Add capacity back as the Link is GCed. 如果当前Link已经被回收完毕，且link链表还有后续节点，则更新head指针
+                    // Add capacity back as the Link is GCed.
                     this.head.reclaimSpace(LINK_CAPACITY);
                     this.head.link = head.next;
                 }
-                //更新当前回收Link的readIndex
+                //更新老head的readIndex，不过该link已被回收，貌似没啥用处
                 head.readIndex = srcEnd;
+                //如果newDstSize没有新增表示没有对象被回收，返回false
                 if (dst.size == newDstSize) {
                     return false;
                 }
@@ -513,7 +519,7 @@ public abstract class Recycler<T> {
             return newCapacity;
         }
 
-        @SuppressWarnings({ "unchecked", "rawtypes" })
+        @SuppressWarnings({"unchecked", "rawtypes"})
         DefaultHandle<T> pop() {
             int size = this.size;
             if (size == 0) {
@@ -526,7 +532,7 @@ public abstract class Recycler<T> {
                     return null;
                 }
             }
-            size --;
+            size--;
             DefaultHandle ret = elements[size];
             elements[size] = null;
             if (ret.lastRecycledId != ret.recycleId) {
@@ -583,7 +589,8 @@ public abstract class Recycler<T> {
                     // We never unlink the first queue, as we don't want to synchronize on updating the head.
                     // 判断当前weakOrderQueue节点是否还有可回收对象
                     if (cursor.hasFinalData()) {
-                        for (;;) { //回收weakOrderQueue中最后一点可回收对象，因为对应的回收线程已经死掉了，这个weakOrderQueue不会再有任何对象了
+                        for (; ; ) {
+                            //回收weakOrderQueue中最后一点可回收对象，因为对应的回收线程已经死掉了，这个weakOrderQueue不会再有任何对象了
                             if (cursor.transfer(this)) {
                                 success = true;
                             } else {
@@ -591,13 +598,14 @@ public abstract class Recycler<T> {
                             }
                         }
                     }
-                    //回收线程已死，对应的weakOrderQueue节点中的最后一点待回收对象也已经回收完毕，就需要将当前节点从链表中删除。unlink当前cursor节点
-                    //利用prev指针删除cursor节点
+                    // 将已退出的线程从 WeakOrderQueue 链表中移除，没有任何对象引用cursor
                     if (prev != null) {
+                        System.err.println("[debug] [" + Thread.currentThread().getName() + "] thread dead and remove it!");
                         prev.setNext(next);
                     }
                 } else {
                     prev = cursor;
+                    System.err.println("[debug] [" + Thread.currentThread().getName() + "] transfer false try again!");
                 }
 
                 cursor = next;
@@ -606,6 +614,7 @@ public abstract class Recycler<T> {
 
             this.prev = prev;
             this.cursor = cursor;
+            System.err.println("[debug] [" + Thread.currentThread().getName() + "] leave prev: " + prev + " cursor: " + cursor + " success: " + success);
             return success;
         }
 
@@ -666,15 +675,17 @@ public abstract class Recycler<T> {
 
             queue.add(item);
         }
+
         //控制回收频率,默认每 8 个对象回收 1 个
         boolean dropHandle(DefaultHandle<?> handle) {
             if (!handle.hasBeenRecycled) {
                 if ((++handleRecycleCount & ratioMask) != 0) {
                     // Drop the object.
-                    System.err.println("[debug] haha drop object "+ handle.value);
+                    System.err.println("[debug] [" + Thread.currentThread().getName() + "] drop handle " + handle.value);
                     return true;
                 }
                 handle.hasBeenRecycled = true;
+                System.err.println("[debug] [" + Thread.currentThread().getName() + "] recycle handle from weakOrderQueue value:" + handle.value);
             }
             return false;
         }
