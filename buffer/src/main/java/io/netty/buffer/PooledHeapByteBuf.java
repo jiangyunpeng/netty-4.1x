@@ -14,6 +14,7 @@
 
 package io.netty.buffer;
 
+import io.netty.util.SourceLogger;
 import io.netty.util.internal.ObjectPool;
 import io.netty.util.internal.ObjectPool.Handle;
 import io.netty.util.internal.ObjectPool.ObjectCreator;
@@ -28,11 +29,11 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
 
     private static final ObjectPool<PooledHeapByteBuf> RECYCLER = ObjectPool.newPool(
             new ObjectCreator<PooledHeapByteBuf>() {
-        @Override
-        public PooledHeapByteBuf newObject(Handle<PooledHeapByteBuf> handle) {
-            return new PooledHeapByteBuf(handle, 0);
-        }
-    });
+                @Override
+                public PooledHeapByteBuf newObject(Handle<PooledHeapByteBuf> handle) {
+                    return new PooledHeapByteBuf(handle, 0);
+                }
+            });
 
     static PooledHeapByteBuf newInstance(int maxCapacity) {
         PooledHeapByteBuf buf = RECYCLER.get();
@@ -131,6 +132,7 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
 
     @Override
     protected void _setByte(int index, int value) {
+        SourceLogger.info(this.getClass(), "write bytes offset=%s, index=%s,handle= ", offset, index, handle);
         HeapByteBufUtil.setByte(memory, idx(index), value);
     }
 
@@ -145,7 +147,7 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
     }
 
     @Override
-    protected void _setMedium(int index, int   value) {
+    protected void _setMedium(int index, int value) {
         HeapByteBufUtil.setMedium(memory, idx(index), value);
     }
 
@@ -155,7 +157,7 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
     }
 
     @Override
-    protected void _setInt(int index, int   value) {
+    protected void _setInt(int index, int value) {
         HeapByteBufUtil.setInt(memory, idx(index), value);
     }
 
@@ -165,7 +167,7 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
     }
 
     @Override
-    protected void _setLong(int index, long  value) {
+    protected void _setLong(int index, long value) {
         HeapByteBufUtil.setLong(memory, idx(index), value);
     }
 
@@ -190,7 +192,7 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
     @Override
     public final ByteBuf setBytes(int index, byte[] src, int srcIndex, int length) {
         checkSrcIndex(index, length, srcIndex, src.length);
-        System.arraycopy(src, srcIndex, memory, idx(index), length);
+        System.arraycopy(src, srcIndex, memory, idx(index), length);//写入到memory特定的位置
         return this;
     }
 

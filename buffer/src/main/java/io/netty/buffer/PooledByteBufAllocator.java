@@ -38,10 +38,10 @@ import java.util.concurrent.TimeUnit;
 public class PooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledByteBufAllocator.class);
-    private static final int DEFAULT_NUM_HEAP_ARENA;
-    private static final int DEFAULT_NUM_DIRECT_ARENA;
+    private static final int DEFAULT_NUM_HEAP_ARENA; //默认core*2，可以通过-Dio.netty.allocator.numHeapArenas 设置
+    private static final int DEFAULT_NUM_DIRECT_ARENA;//默认core*2，
 
-    private static final int DEFAULT_PAGE_SIZE;
+    private static final int DEFAULT_PAGE_SIZE; //默认8k
     private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
     private static final int DEFAULT_SMALL_CACHE_SIZE;
     private static final int DEFAULT_NORMAL_CACHE_SIZE;
@@ -98,8 +98,8 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
          *
          * See https://github.com/netty/netty/issues/3888.
          */
-        final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;
-        final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
+        final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;//默认core*2
+        final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;//默认16MB
         DEFAULT_NUM_HEAP_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
                         "io.netty.allocator.numHeapArenas",
@@ -295,7 +295,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
         int pageShifts = validateAndCalculatePageShifts(pageSize, directMemoryCacheAlignment);
 
-        if (nHeapArena > 0) {
+        if (nHeapArena > 0) {//nHeapArena默认是core*2个
             heapArenas = newArenaArray(nHeapArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(heapArenas.length);
             for (int i = 0; i < heapArenas.length; i ++) {
@@ -506,6 +506,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
         @Override
         protected synchronized PoolThreadCache initialValue() {
+            //从数组中拿最少使用的PoolArena
             final PoolArena<byte[]> heapArena = leastUsedArena(heapArenas);
             final PoolArena<ByteBuffer> directArena = leastUsedArena(directArenas);
 

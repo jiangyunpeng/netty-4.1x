@@ -16,6 +16,7 @@
 
 package io.netty.buffer;
 
+import io.netty.util.SourceLogger;
 import io.netty.util.internal.ObjectPool.Handle;
 
 import java.io.IOException;
@@ -59,9 +60,9 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
                        long handle, int offset, int length, int maxLength, PoolThreadCache cache) {
         assert handle >= 0;
         assert chunk != null;
-
-        this.chunk = chunk;
-        memory = chunk.memory;
+        SourceLogger.info(this.getClass(),"init PooledByteBuf chunk=%s, handle=%s,offset=%s,length=%s",chunk.hashCode(),handle,offset,length);
+        this.chunk = chunk;//哪个块
+        memory = chunk.memory;//16mb字节数组
         tmpNioBuf = nioBuffer;
         allocator = chunk.arena.parent;
         this.cache = cache;

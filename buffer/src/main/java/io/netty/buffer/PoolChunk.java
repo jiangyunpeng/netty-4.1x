@@ -15,6 +15,8 @@
  */
 package io.netty.buffer;
 
+import io.netty.util.SourceLogger;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -22,112 +24,111 @@ import java.util.PriorityQueue;
 
 /**
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
- *
+ * <p>
  * Notation: The following terms are important to understand the code
  * > page  - a page is the smallest unit of memory chunk that can be allocated
  * > run   - a run is a collection of pages
  * > chunk - a chunk is a collection of runs
  * > in this code chunkSize = maxPages * pageSize
- *
+ * <p>
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
  * return a (long) handle that encodes this offset information, (this memory segment is then
  * marked as reserved so it is always used by exactly one ByteBuf and no more)
- *
+ * <p>
  * For simplicity all sizes are normalized according to {@link PoolArena#size2SizeIdx(int)} method.
  * This ensures that when we request for memory segments of size > pageSize the normalizedCapacity
  * equals the next nearest size in {@link SizeClasses}.
- *
- *
- *  A chunk has the following layout:
- *
- *     /-----------------\
- *     | run             |
- *     |                 |
- *     |                 |
- *     |-----------------|
- *     | run             |
- *     |                 |
- *     |-----------------|
- *     | unalloctated    |
- *     | (freed)         |
- *     |                 |
- *     |-----------------|
- *     | subpage         |
- *     |-----------------|
- *     | unallocated     |
- *     | (freed)         |
- *     | ...             |
- *     | ...             |
- *     | ...             |
- *     |                 |
- *     |                 |
- *     |                 |
- *     \-----------------/
- *
- *
+ * <p>
+ * <p>
+ * A chunk has the following layout:
+ * <p>
+ * /-----------------\
+ * | run             |
+ * |                 |
+ * |                 |
+ * |-----------------|
+ * | run             |
+ * |                 |
+ * |-----------------|
+ * | unalloctated    |
+ * | (freed)         |
+ * |                 |
+ * |-----------------|
+ * | subpage         |
+ * |-----------------|
+ * | unallocated     |
+ * | (freed)         |
+ * | ...             |
+ * | ...             |
+ * | ...             |
+ * |                 |
+ * |                 |
+ * |                 |
+ * \-----------------/
+ * <p>
+ * <p>
  * handle:
  * -------
  * a handle is a long number, the bit layout of a run looks like:
- *
+ * <p>
  * oooooooo ooooooos ssssssss ssssssue bbbbbbbb bbbbbbbb bbbbbbbb bbbbbbbb
- *
+ * <p>
  * o: runOffset (page offset in the chunk), 15bit
  * s: size (number of pages) of this run, 15bit
  * u: isUsed?, 1bit
  * e: isSubpage?, 1bit
  * b: bitmapIdx of subpage, zero if it's not subpage, 32bit
- *
+ * <p>
  * runsAvailMap:
  * ------
  * a map which manages all runs (used and not in used).
  * For each run, the first runOffset and last runOffset are stored in runsAvailMap.
  * key: runOffset
  * value: handle
- *
+ * <p>
  * runsAvail:
  * ----------
  * an array of {@link PriorityQueue}.
  * Each queue manages same size of runs.
  * Runs are sorted by offset, so that we always allocate runs with smaller offset.
- *
- *
+ * <p>
+ * <p>
  * Algorithm:
  * ----------
- *
- *   As we allocate runs, we update values stored in runsAvailMap and runsAvail so that the property is maintained.
- *
+ * <p>
+ * As we allocate runs, we update values stored in runsAvailMap and runsAvail so that the property is maintained.
+ * <p>
  * Initialization -
- *  In the beginning we store the initial run which is the whole chunk.
- *  The initial run:
- *  runOffset = 0
- *  size = chunkSize
- *  isUsed = no
- *  isSubpage = no
- *  bitmapIdx = 0
- *
- *
+ * In the beginning we store the initial run which is the whole chunk.
+ * The initial run:
+ * runOffset = 0
+ * size = chunkSize
+ * isUsed = no
+ * isSubpage = no
+ * bitmapIdx = 0
+ * <p>
+ * <p>
  * Algorithm: [allocateRun(size)]
  * ----------
  * 1) find the first avail run using in runsAvails according to size
  * 2) if pages of run is larger than request pages then split it, and save the tailing run
- *    for later using
- *
+ * for later using
+ * <p>
  * Algorithm: [allocateSubpage(size)]
  * ----------
  * 1) find a not full subpage according to size.
- *    if it already exists just return, otherwise allocate a new PoolSubpage and call init()
- *    note that this subpage object is added to subpagesPool in the PoolArena when we init() it
+ * if it already exists just return, otherwise allocate a new PoolSubpage and call init()
+ * note that this subpage object is added to subpagesPool in the PoolArena when we init() it
  * 2) call subpage.allocate()
- *
+ * <p>
  * Algorithm: [free(handle, length, nioBuffer)]
  * ----------
  * 1) if it is a subpage, return the slab back into this subpage
  * 2) if the subpage is not used or it is a run, then start free this run
  * 3) merge continuous avail runs
  * 4) save the merged run
- *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
     private static final int SIZE_BIT_LENGTH = 15;
@@ -151,7 +152,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private final LongLongHashMap runsAvailMap;
 
     /**
-     * manage all avail runs
+     * manage all avail runs 默认长度为 40
      */
     private final LongPriorityQueue[] runsAvail;
 
@@ -182,7 +183,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
     @SuppressWarnings("unchecked")
-    PoolChunk(PoolArena<T> arena, Object base, T memory, int pageSize, int pageShifts, int chunkSize, int maxPageIdx) {
+    PoolChunk(PoolArena<T> arena, Object base, T memory, int pageSize/*8192*/, int pageShifts/*13*/, int chunkSize, int maxPageIdx) {
         unpooled = false;
         this.arena = arena;
         this.base = base;
@@ -197,14 +198,16 @@ final class PoolChunk<T> implements PoolChunkMetric {
         subpages = new PoolSubpage[chunkSize >> pageShifts];
 
         //insert initial run, offset = 0, pages = chunkSize / pageSize
-        int pages = chunkSize >> pageShifts;
-        long initHandle = (long) pages << SIZE_SHIFT;
+        int pages = chunkSize >> pageShifts;//表示16mb/8k=2048个page
+        long initHandle = (long) pages << SIZE_SHIFT;//默认值是 35184372088832L，它表示这么一个 run: 起始页偏移量为 0，共有 2048 个页，当前 run 未被使用且不属于subpage
         insertAvailRun(0, pages, initHandle);
 
         cachedNioBuffers = new ArrayDeque<ByteBuffer>(8);
     }
 
-    /** Creates a special chunk that is not pooled. */
+    /**
+     * Creates a special chunk that is not pooled.
+     */
     PoolChunk(PoolArena<T> arena, Object base, T memory, int size) {
         unpooled = true;
         this.arena = arena;
@@ -227,10 +230,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return queueArray;
     }
 
+    //写入runsAvail队列和runsAvailMap，runsAvailMap会写两个key对handle的映射
     private void insertAvailRun(int runOffset, int pages, long handle) {
         int pageIdxFloor = arena.pages2pageIdxFloor(pages);
         LongPriorityQueue queue = runsAvail[pageIdxFloor];
         queue.offer(handle);
+
 
         //insert first page of run
         insertAvailRun0(runOffset, handle);
@@ -238,6 +243,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             //insert last page of run
             insertAvailRun0(lastPage(runOffset, pages), handle);
         }
+
     }
 
     private void insertAvailRun0(int runOffset, long handle) {
@@ -248,6 +254,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private void removeAvailRun(long handle) {
         int pageIdxFloor = arena.pages2pageIdxFloor(runPages(handle));
         LongPriorityQueue queue = runsAvail[pageIdxFloor];
+        SourceLogger.info(this.getClass(),"remove runsAvail[%s] queue and runsAvailMap handle=%s",pageIdxFloor,handle);
         removeAvailRun(queue, handle);
     }
 
@@ -294,9 +301,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int sizeIdx, PoolThreadCache cache) {
+        // handle表示分配成功的内存块的offset，
         final long handle;
+
+        //<=38 small从subPage分配
         if (sizeIdx <= arena.smallMaxSizeIdx) {
-            // small
             handle = allocateSubpage(sizeIdx);
             if (handle < 0) {
                 return false;
@@ -305,44 +314,53 @@ final class PoolChunk<T> implements PoolChunkMetric {
         } else {
             // normal
             // runSize must be multiple of pageSize
-            int runSize = arena.sizeIdx2size(sizeIdx);
+            int runSize = arena.sizeIdx2size(sizeIdx);//sizeIdx反向
             handle = allocateRun(runSize);
             if (handle < 0) {
                 return false;
             }
         }
 
-        ByteBuffer nioBuffer = cachedNioBuffers != null? cachedNioBuffers.pollLast() : null;
+        ByteBuffer nioBuffer = cachedNioBuffers != null ? cachedNioBuffers.pollLast() : null;
         initBuf(buf, nioBuffer, handle, reqCapacity, cache);
         return true;
     }
 
     private long allocateRun(int runSize) {
-        int pages = runSize >> pageShifts;
+        int pages = runSize >> pageShifts;//转化为pageSize
         int pageIdx = arena.pages2pageIdx(pages);
 
         synchronized (runsAvail) {
             //find first queue which has at least one big enough run
-            int queueIdx = runFirstBestFit(pageIdx);
+            int queueIdx = runFirstBestFit(pageIdx);//通过pageIdx拿到对应的queueIdx
             if (queueIdx == -1) {
                 return -1;
             }
 
             //get run with min offset in this queue
-            LongPriorityQueue queue = runsAvail[queueIdx];
+            LongPriorityQueue queue = runsAvail[queueIdx];//找到对应的LongPriorityQueue
             long handle = queue.poll();
+            SourceLogger.info(this.getClass(),"allocateRun begin! get queue from [%s], pages=%s, pageIdx=%s, runSize=%s, handle=%s",
+                    queueIdx,
+                    pages,
+                    pageIdx,
+                    runSize,
+                    handle);
 
             assert handle != LongPriorityQueue.NO_VALUE && !isUsed(handle) : "invalid handle: " + handle;
 
+            //先将「handle」从优先级queue中移除，因为我们有可能需要对它进行修改
             removeAvailRun(queue, handle);
 
             if (handle != -1) {
-                handle = splitLargeRun(handle, pages);
+                handle = splitLargeRun(handle, pages);//旧的handle进行拆分，pages是我们需要的页数，例如32k需要4页
             }
 
             int pinnedSize = runSize(pageShifts, handle);
             freeBytes -= pinnedSize;
             pinnedBytes += pinnedSize;
+
+            SourceLogger.info(this.getClass(), "allocateRun end! runSize=%s pageIdx=%s queueIdx=%s handle=%s", runSize, pageIdx, queueIdx, handle);
             return handle;
         }
     }
@@ -371,7 +389,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         return runSize;
     }
-
+    //从pageIdx开始找到第一个非空的队列
     private int runFirstBestFit(int pageIdx) {
         if (freeBytes == chunkSize) {
             return arena.nPSizes - 1;
@@ -385,26 +403,43 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return -1;
     }
 
+    //把 handle 拆分为 used 和 unused 两个handle,返回used
     private long splitLargeRun(long handle, int needPages) {
         assert needPages > 0;
 
-        int totalPages = runPages(handle);
+        int totalPages = runPages(handle);//获取handle中记录的总页数，初始handle有2048个page
         assert needPages <= totalPages;
 
-        int remPages = totalPages - needPages;
+        int remPages = totalPages - needPages;//剩余page
 
         if (remPages > 0) {
-            int runOffset = runOffset(handle);
+            int runOffset = runOffset(handle);//获取handle记录的pageOffset
 
             // keep track of trailing unused pages for later use
             int availOffset = runOffset + needPages;
-            long availRun = toRunHandle(availOffset, remPages, 0);
-            insertAvailRun(availOffset, remPages, availRun);
 
-            // not avail
-            return toRunHandle(runOffset, needPages, 1);
+            long availRun = toRunHandle(availOffset, remPages, 0);//基于availOffset产生剩余的handle
+
+            insertAvailRun(availOffset, remPages, availRun);//保存剩余的handle，注意会记录两个key
+
+            // 返回分配的handle
+            long used = toRunHandle(runOffset, needPages, 1);
+
+            SourceLogger.info(this.getClass(), "splitLargeRun from %s,needPages=%s,unused=%s,used=%s",
+                    handle,
+                    needPages,
+                    availRun,
+                    used);
+            SourceLogger.info(this.getClass(), "offer runsAvail[%s] queue, pages=%s handle=%s",
+                    arena.pages2pageIdxFloor(remPages),
+                    remPages,
+                    handle);
+            SourceLogger.info(this.getClass(), "insert availRunMap firstPage=%s lastPage=%s handle=%s",
+                    runOffset, lastPage(runOffset, remPages), handle);
+
+            return used;
         }
-
+        //如果该handle已经耗尽，标记
         //mark it as used
         handle |= 1L << IS_USED_SHIFT;
         return handle;
@@ -415,17 +450,21 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * subpage pool in the PoolArena that owns this PoolChunk
      *
      * @param sizeIdx sizeIdx of normalized size
-     *
      * @return index in memoryMap
      */
     private long allocateSubpage(int sizeIdx) {
         // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
         // This is need as we may add it back and so alter the linked-list structure.
         PoolSubpage<T> head = arena.findSubpagePoolHead(sizeIdx);
+
         synchronized (head) {
-            //allocate a new run
+            //计算sizeIdx对应的bytes和8192的最小公倍数
             int runSize = calculateRunSize(sizeIdx);
-            //runSize must be multiples of pageSize
+
+            SourceLogger.info(this.getClass(), "allocate Subpage begin sizeIdx=%s, runSize=%s, pages=%s",
+                    sizeIdx,runSize,(runSize >> pageShifts));
+
+            //分配run
             long runHandle = allocateRun(runSize);
             if (runHandle < 0) {
                 return -1;
@@ -434,10 +473,10 @@ final class PoolChunk<T> implements PoolChunkMetric {
             int runOffset = runOffset(runHandle);
             assert subpages[runOffset] == null;
             int elemSize = arena.sizeIdx2size(sizeIdx);
-
+            //创建PoolSubpage
             PoolSubpage<T> subpage = new PoolSubpage<T>(head, this, pageShifts, runOffset,
-                               runSize(pageShifts, runHandle), elemSize);
-
+                    runSize(pageShifts, runHandle), elemSize);
+            SourceLogger.info(this.getClass(), "create Subpage runOffset=%s, runSize=%s, sizeIdx=%s, elemSize=%s", runOffset, runSize(pageShifts, runHandle), sizeIdx, elemSize);
             subpages[runOffset] = subpage;
             return subpage.allocate();
         }
@@ -453,7 +492,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     void free(long handle, int normCapacity, ByteBuffer nioBuffer) {
         int runSize = runSize(pageShifts, handle);
         pinnedBytes -= runSize;
-        if (isSubpage(handle)) {
+        if (isSubpage(handle)) {//是否是subPage
             int sizeIdx = arena.size2SizeIdx(normCapacity);
             PoolSubpage<T> head = arena.findSubpagePoolHead(sizeIdx);
 
@@ -490,7 +529,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         }
 
         if (nioBuffer != null && cachedNioBuffers != null &&
-            cachedNioBuffers.size() < PooledByteBufAllocator.DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK) {
+                cachedNioBuffers.size() < PooledByteBufAllocator.DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK) {
             cachedNioBuffers.offer(nioBuffer);
         }
     }
@@ -500,7 +539,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     private long collapsePast(long handle) {
-        for (;;) {
+        for (; ; ) {
             int runOffset = runOffset(handle);
             int runPages = runPages(handle);
 
@@ -524,7 +563,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     private long collapseNext(long handle) {
-        for (;;) {
+        for (; ; ) {
             int runOffset = runOffset(handle);
             int runPages = runPages(handle);
 
@@ -535,7 +574,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
             int nextOffset = runOffset(nextRun);
             int nextPages = runPages(nextRun);
-
+            SourceLogger.info(this.getClass(),"collapseRun %s and %s",handle,nextRun);
             //is continuous
             if (nextRun != handle && runOffset + runPages == nextOffset) {
                 //remove next run
@@ -549,30 +588,32 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     private static long toRunHandle(int runOffset, int runPages, int inUsed) {
         return (long) runOffset << RUN_OFFSET_SHIFT
-               | (long) runPages << SIZE_SHIFT
-               | (long) inUsed << IS_USED_SHIFT;
+                | (long) runPages << SIZE_SHIFT
+                | (long) inUsed << IS_USED_SHIFT;
     }
 
     void initBuf(PooledByteBuf<T> buf, ByteBuffer nioBuffer, long handle, int reqCapacity,
                  PoolThreadCache threadCache) {
-        if (isRun(handle)) {
+        if (isRun(handle)) {//判断是否是Run
             buf.init(this, nioBuffer, handle, runOffset(handle) << pageShifts,
-                     reqCapacity, runSize(pageShifts, handle), arena.parent.threadCache());
-        } else {
+                    reqCapacity, runSize(pageShifts, handle), arena.parent.threadCache());
+        } else {//否则是Subpage
             initBufWithSubpage(buf, nioBuffer, handle, reqCapacity, threadCache);
         }
     }
 
     void initBufWithSubpage(PooledByteBuf<T> buf, ByteBuffer nioBuffer, long handle, int reqCapacity,
                             PoolThreadCache threadCache) {
-        int runOffset = runOffset(handle);
-        int bitmapIdx = bitmapIdx(handle);
+        int runOffset = runOffset(handle);//得到run的offset
+        int bitmapIdx = bitmapIdx(handle);//通过bitmap计算subpage的offset
 
         PoolSubpage<T> s = subpages[runOffset];
         assert s.doNotDestroy;
         assert reqCapacity <= s.elemSize;
 
-        int offset = (runOffset << pageShifts) + bitmapIdx * s.elemSize;
+        SourceLogger.info(this.getClass(), "通过Subpage初始化PooledByteBuf, handle=%s,runOffset=%s,bitmapIdx=%s", handle, runOffset, bitmapIdx);
+
+        int offset = (runOffset << pageShifts) + bitmapIdx * s.elemSize;//bitmapIdx表示run被均分为多少个subPage
         buf.init(this, nioBuffer, handle, offset, reqCapacity, s.elemSize, threadCache);
     }
 

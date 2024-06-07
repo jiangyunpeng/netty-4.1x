@@ -20,6 +20,7 @@ package io.netty.buffer;
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 import io.netty.buffer.PoolArena.SizeClass;
+import io.netty.util.SourceLogger;
 import io.netty.util.internal.MathUtil;
 import io.netty.util.internal.ObjectPool;
 import io.netty.util.internal.ObjectPool.Handle;
@@ -50,7 +51,7 @@ final class PoolThreadCache {
     final PoolArena<ByteBuffer> directArena;
 
     // Hold the caches for the different size classes, which are tiny, small and normal.
-    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;
+    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;//small区域,39个subPage
     private final MemoryRegionCache<ByteBuffer>[] smallSubPageDirectCaches;
     private final MemoryRegionCache<byte[]>[] normalHeapCaches;
     private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;
@@ -148,7 +149,10 @@ final class PoolThreadCache {
      * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
     boolean allocateSmall(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int sizeIdx) {
-        return allocate(cacheForSmall(area, sizeIdx), buf, reqCapacity);
+        boolean ret = allocate(cacheForSmall(area, sizeIdx), buf, reqCapacity);
+        //SourceLogger.info(this.getClass(),"从线程缓存中分配 result=%s reqCapacity=%s, sizeIdx=%s",ret,reqCapacity,sizeIdx);
+
+        return ret;
     }
 
     /**

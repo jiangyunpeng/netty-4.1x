@@ -20,6 +20,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 import io.netty.util.ResourceLeakDetector;
 import io.netty.util.ResourceLeakTracker;
+import io.netty.util.SourceLogger;
 import io.netty.util.internal.MathUtil;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;

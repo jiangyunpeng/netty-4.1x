@@ -78,7 +78,7 @@ import static io.netty.buffer.PoolThreadCache.*;
  * <p>
  *   ( 76,    24,       22,        1,       yes,            no,        no)
  */
-abstract class SizeClasses implements SizeClassesMetric {
+public abstract class SizeClasses implements SizeClassesMetric {
 
     static final int LOG2_QUANTUM = 4;
 
