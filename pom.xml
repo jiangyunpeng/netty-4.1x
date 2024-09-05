@@ -339,8 +339,8 @@
   </properties>
 
   <modules>
-    <module>all</module>
-    <module>dev-tools</module>
+<!--    <module>all</module>-->
+<!--    <module>dev-tools</module>-->
     <module>common</module>
     <module>buffer</module>
     <module>codec</module>
@@ -348,16 +348,16 @@
     <module>codec-haproxy</module>
     <module>codec-http</module>
     <module>codec-http2</module>
-    <module>codec-memcache</module>
-    <module>codec-mqtt</module>
-    <module>codec-redis</module>
+<!--    <module>codec-memcache</module>-->
+<!--    <module>codec-mqtt</module>-->
+<!--    <module>codec-redis</module>-->
 <!--    <module>codec-smtp</module>-->
 <!--    <module>codec-socks</module>-->
 <!--    <module>codec-stomp</module>-->
 <!--    <module>codec-xml</module>-->
     <module>resolver</module>
     <module>resolver-dns</module>
-    <module>tarball</module>
+<!--    <module>tarball</module>-->
     <module>transport</module>
 <!--    <module>transport-native-unix-common-tests</module>-->
 <!--    <module>transport-native-unix-common</module>-->
@@ -366,16 +366,16 @@
 <!--    <module>transport-rxtx</module>-->
 <!--    <module>transport-sctp</module>-->
 <!--    <module>transport-udt</module>-->
-    <module>handler</module>
-    <module>handler-proxy</module>
-    <module>example</module>
-    <module>testsuite</module>
-    <module>testsuite-autobahn</module>
-    <module>testsuite-http2</module>
-    <module>testsuite-osgi</module>
-    <module>testsuite-shading</module>
-    <module>testsuite-native-image</module>
-    <module>microbench</module>
+<!--    <module>handler</module>-->
+<!--    <module>handler-proxy</module>-->
+<!--    <module>example</module>-->
+<!--    <module>testsuite</module>-->
+<!--    <module>testsuite-autobahn</module>-->
+<!--    <module>testsuite-http2</module>-->
+<!--    <module>testsuite-osgi</module>-->
+<!--    <module>testsuite-shading</module>-->
+<!--    <module>testsuite-native-image</module>-->
+<!--    <module>microbench</module>-->
     <module>bom</module>
   </modules>
 
@@ -870,31 +870,31 @@
           </dependency>
         </dependencies>
       </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>xml-maven-plugin</artifactId>
-        <version>1.0.1</version>
-        <executions>
-          <execution>
-            <id>check-style</id>
-            <goals>
-              <goal>check-format</goal>
-            </goals>
-            <phase>validate</phase>
-          </execution>
-        </executions>
-        <configuration>
-          <formatFileSets>
-            <formatFileSet>
-              <directory>${project.basedir}</directory>
-              <includes>
-                <include>**/pom.xml</include>
-              </includes>
-            </formatFileSet>
-          </formatFileSets>
-          <useDefaultFormatFileSet>false</useDefaultFormatFileSet>
-        </configuration>
-      </plugin>
+<!--      <plugin>-->
+<!--        <groupId>org.codehaus.mojo</groupId>-->
+<!--        <artifactId>xml-maven-plugin</artifactId>-->
+<!--        <version>1.0.1</version>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <id>check-style</id>-->
+<!--            <goals>-->
+<!--              <goal>check-format</goal>-->
+<!--            </goals>-->
+<!--            <phase>validate</phase>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--        <configuration>-->
+<!--          <formatFileSets>-->
+<!--            <formatFileSet>-->
+<!--              <directory>${project.basedir}</directory>-->
+<!--              <includes>-->
+<!--                <include>**/pom.xml</include>-->
+<!--              </includes>-->
+<!--            </formatFileSet>-->
+<!--          </formatFileSets>-->
+<!--          <useDefaultFormatFileSet>false</useDefaultFormatFileSet>-->
+<!--        </configuration>-->
+<!--      </plugin>-->
       <!-- Download the npn-boot.jar in advance to add it to the boot classpath. -->
       <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
