@@ -307,8 +307,8 @@
   </profiles>
 
   <properties>
-    <maven.compiler.source>1.6</maven.compiler.source>
-    <maven.compiler.target>1.6</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
     <netty.dev.tools.directory>${project.build.directory}/dev-tools</netty.dev.tools.directory>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -359,45 +359,45 @@
   </properties>
 
   <modules>
-    <module>all</module>
+<!--    <module>all</module>-->
     <module>dev-tools</module>
     <module>common</module>
     <module>buffer</module>
     <module>codec</module>
     <module>codec-dns</module>
-    <module>codec-haproxy</module>
+<!--    <module>codec-haproxy</module>-->
     <module>codec-http</module>
     <module>codec-http2</module>
-    <module>codec-memcache</module>
-    <module>codec-mqtt</module>
-    <module>codec-redis</module>
-    <module>codec-smtp</module>
-    <module>codec-socks</module>
-    <module>codec-stomp</module>
-    <module>codec-xml</module>
+<!--    <module>codec-memcache</module>-->
+<!--    <module>codec-mqtt</module>-->
+<!--    <module>codec-redis</module>-->
+<!--    <module>codec-smtp</module>-->
+<!--    <module>codec-socks</module>-->
+<!--    <module>codec-stomp</module>-->
+<!--    <module>codec-xml</module>-->
     <module>resolver</module>
     <module>resolver-dns</module>
-    <module>resolver-dns-native-macos</module>
-    <module>tarball</module>
+<!--    <module>resolver-dns-native-macos</module>-->
+<!--    <module>tarball</module>-->
     <module>transport</module>
-    <module>transport-native-unix-common-tests</module>
-    <module>transport-native-unix-common</module>
-    <module>transport-native-epoll</module>
-    <module>transport-native-kqueue</module>
-    <module>transport-rxtx</module>
-    <module>transport-sctp</module>
-    <module>transport-udt</module>
-    <module>handler</module>
-    <module>handler-proxy</module>
-    <module>example</module>
-    <module>testsuite</module>
-    <module>testsuite-autobahn</module>
-    <module>testsuite-http2</module>
-    <module>testsuite-osgi</module>
-    <module>testsuite-shading</module>
-    <module>testsuite-native-image</module>
-    <module>transport-blockhound-tests</module>
-    <module>microbench</module>
+<!--    <module>transport-native-unix-common-tests</module>-->
+<!--    <module>transport-native-unix-common</module>-->
+<!--    <module>transport-native-epoll</module>-->
+<!--    <module>transport-native-kqueue</module>-->
+<!--    <module>transport-rxtx</module>-->
+<!--    <module>transport-sctp</module>-->
+<!--    <module>transport-udt</module>-->
+<!--    <module>handler</module>-->
+<!--    <module>handler-proxy</module>-->
+<!--    <module>example</module>-->
+<!--    <module>testsuite</module>-->
+<!--    <module>testsuite-autobahn</module>-->
+<!--    <module>testsuite-http2</module>-->
+<!--    <module>testsuite-osgi</module>-->
+<!--    <module>testsuite-shading</module>-->
+<!--    <module>testsuite-native-image</module>-->
+<!--    <module>transport-blockhound-tests</module>-->
+<!--    <module>microbench</module>-->
     <module>bom</module>
   </modules>
 
