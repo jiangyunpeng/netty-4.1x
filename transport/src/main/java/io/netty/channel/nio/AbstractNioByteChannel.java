@@ -17,6 +17,7 @@ package io.netty.channel.nio;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
@@ -29,9 +30,12 @@ import io.netty.channel.internal.ChannelUtils;
 import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.channel.socket.ChannelInputShutdownReadComplete;
 import io.netty.channel.socket.SocketChannelConfig;
+import io.netty.util.AttributeKey;
+import io.netty.util.SourceLogger;
 import io.netty.util.internal.StringUtil;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 
@@ -130,6 +134,13 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
         @Override
         public final void read() {
+            AbstractChannel channel =AbstractNioByteChannel.this;
+            InetSocketAddress localAddress = (InetSocketAddress) channel.localAddress();
+            if(localAddress.getPort()==9300 || localAddress.getPort()==9200){
+                SourceLogger.MDC.put("role","server");
+            }else{
+                SourceLogger.MDC.put("role","client");
+            }
             final ChannelConfig config = config();
             if (shouldBreakReadReady(config)) {
                 clearReadPending();

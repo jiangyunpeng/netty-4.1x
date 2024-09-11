@@ -220,7 +220,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
         }
 
         if (readerIndex != writerIndex) {
-            setBytes(0, this, readerIndex, writerIndex - readerIndex);
+            setBytes(0, this, readerIndex, writerIndex - readerIndex);//重新更新在byte[]中的位置
             writerIndex -= readerIndex;
             adjustMarkers(readerIndex);
             readerIndex = 0;

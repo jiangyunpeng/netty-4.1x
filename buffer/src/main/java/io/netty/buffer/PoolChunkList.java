@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
+    private final String name;
     private final PoolArena<T> arena;
     private final PoolChunkList<T> nextList;
     private final int minUsage;
@@ -44,8 +45,9 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
-    PoolChunkList(PoolArena<T> arena, PoolChunkList<T> nextList, int minUsage, int maxUsage, int chunkSize) {
+    PoolChunkList(String name,PoolArena<T> arena, PoolChunkList<T> nextList, int minUsage, int maxUsage, int chunkSize) {
         assert minUsage <= maxUsage;
+        this.name = name;
         this.arena = arena;
         this.nextList = nextList;
         this.minUsage = minUsage;

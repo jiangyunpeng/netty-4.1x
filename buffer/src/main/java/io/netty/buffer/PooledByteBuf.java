@@ -93,6 +93,8 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
     @Override
     public final ByteBuf capacity(int newCapacity) {
+        // 调整buf容量大小
+        // 该方法会检查申请的容量大小，如果大于当前容量会扩容，如果小于当前容量会重新申请新的buf，并回收老的
         if (newCapacity == length) {
             ensureAccessible();
             return this;
@@ -114,7 +116,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             }
         }
 
-        // Reallocation required.
+        //重新分配：申请新的容量，释放老的容量
         chunk.arena.reallocate(this, newCapacity, true);
         return this;
     }
@@ -168,7 +170,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             final long handle = this.handle;
             this.handle = -1;
             memory = null;
-            chunk.arena.free(chunk, tmpNioBuf, handle, maxLength, cache);
+            chunk.arena.free(chunk, tmpNioBuf, handle, maxLength, cache,"deallocate");
             tmpNioBuf = null;
             chunk = null;
             recycle();

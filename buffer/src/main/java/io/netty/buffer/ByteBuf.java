@@ -253,6 +253,9 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract int capacity();
 
     /**
+     * 调整buf容量大小
+     * 该方法会检查申请的容量大小，如果大于当前容量会扩容，如果小于当前容量会重新申请新的buf，并回收老的
+     *
      * Adjusts the capacity of this buffer.  If the {@code newCapacity} is less than the current
      * capacity, the content of this buffer is truncated.  If the {@code newCapacity} is greater
      * than the current capacity, the buffer is appended with unspecified data whose length is

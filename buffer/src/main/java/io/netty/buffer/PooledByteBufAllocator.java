@@ -18,6 +18,7 @@ package io.netty.buffer;
 
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
+import io.netty.buffer.metric.NettyBufferMetric;
 import io.netty.util.NettyRuntime;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -292,6 +293,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             directArenaMetrics = Collections.emptyList();
         }
         metric = new PooledByteBufAllocatorMetric(this);
+        NettyBufferMetric.registerAllocator(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -471,7 +473,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             if (useCacheForAllThreads || current instanceof FastThreadLocalThread) {
                 final PoolThreadCache cache = new PoolThreadCache(
                         heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,
-                        DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);
+                        DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);//ThreadCache最大32kb
 
                 if (DEFAULT_CACHE_TRIM_INTERVAL_MILLIS > 0) {
                     final EventExecutor executor = ThreadExecutorMap.currentExecutor();
@@ -613,7 +615,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         return chunkSize;
     }
 
-    final long usedHeapMemory() {
+    public final long usedHeapMemory() {
         return usedMemory(heapArenas);
     }
 

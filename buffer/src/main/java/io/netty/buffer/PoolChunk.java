@@ -495,13 +495,13 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         return new StringBuilder()
                 .append("Chunk(")
-                .append(Integer.toHexString(System.identityHashCode(this)))
+                .append(Integer.toHexString(System.identityHashCode(this)).substring(0,2))
                 .append(": ")
                 .append(usage(freeBytes))
-                .append("%, ")
-                .append(chunkSize - freeBytes)
-                .append('/')
-                .append(chunkSize)
+                .append("%")
+//                .append(chunkSize - freeBytes)
+//                .append('/')
+//                .append(chunkSize)
                 .append(')')
                 .toString();
     }

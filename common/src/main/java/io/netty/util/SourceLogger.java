@@ -11,7 +11,9 @@ import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -135,15 +137,14 @@ public class SourceLogger {
         }
 
 //        logQueue.add(log);
-
-        System.out.println(log);
+//        System.out.println(log);
 
     }
 
     public synchronized static void debug(Class type, String message, Object... args) {
         String log = format(type, message, args);
         if (logQueue.size() < LOG_QUEUE_SIZE) {
-            logQueue.add(log);
+            //logQueue.add(log);
         }
         System.out.println(log);
     }
@@ -207,7 +208,7 @@ public class SourceLogger {
             sb.append(formatClass(type));
             sb.append(SPLIT1);
         }
-
+        sb.append(formatMDC());
         try {
             sb.append(MessageFormatter.arrayFormat(message, args));
         } catch (Exception e) {
@@ -216,6 +217,13 @@ public class SourceLogger {
         return sb.toString();
     }
 
+    private static String formatMDC(){
+        if(MDC.get("role")!=null){
+            return " [role="+MDC.get("role")+"] ";
+        }else{
+            return "";
+        }
+    }
     private static String formatIndent() {
         StringBuilder sb = new StringBuilder();
         Context ctx = null;
@@ -322,12 +330,23 @@ public class SourceLogger {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static class MDC {
+        private static ThreadLocal<Map<String, String>> innerCtx = ThreadLocal.withInitial(() -> new HashMap<>());
 
-        System.out.println(MessageFormatter.arrayFormat("test a={},b={},c={}", 1, 2, 3));
-        System.out.println(MessageFormatter.arrayFormat("fff oo a={},b={},c={} oookk", 1, 2, 3));
-        System.out.println(MessageFormatter.arrayFormat("fff oo a= oookk", 1, 2, 3));
+        public static void put(String key, String value) {
+            innerCtx.get().put(key, value);
+        }
 
+        public static String get(String key) {
+            return innerCtx.get().get(key);
+        }
     }
+
+    public static void main(String[] args) throws InterruptedException {
+        MDC.put("role","client");
+        SourceLogger.debug(SourceLogger.class,"test");
+    }
+
+
 }
 
