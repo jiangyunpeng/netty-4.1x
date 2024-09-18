@@ -11,5 +11,5 @@ mvn compile -Dcheckstyle.skip=true -e
 
 branch
 - remotes/origin/netty-4.1.70-dev
-- remotes/origin/netty-4.1.43-dev 
+- remotes/origin/netty-4.1.49-dev 
 
