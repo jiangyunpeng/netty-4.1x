@@ -118,10 +118,13 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     }
 
     boolean free(PoolChunk<T> chunk, long handle, ByteBuffer nioBuffer) {
+        //释放chunk中的subpage(子页)或者a run of page(一组连续的内存页)
         chunk.free(handle, nioBuffer);
+        //如果 可用空间 超过了freeMaxThreshold
         if (chunk.freeBytes > freeMaxThreshold) {
+            //从当前链表中删除chunk
             remove(chunk);
-            // Move the PoolChunk down the PoolChunkList linked-list.
+            //移到下一个 PoolChunkList，即100->75->50->25->init
             return move0(chunk);
         }
         return true;

@@ -37,7 +37,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     protected int length;
     int maxLength;
     PoolThreadCache cache;
-    ByteBuffer tmpNioBuf;
+    ByteBuffer tmpNioBuf;//缓存的ByteBuffer，避免重复创建ByteBuffer对象
     private ByteBufAllocator allocator;
 
     @SuppressWarnings("unchecked")
@@ -100,13 +100,16 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             return this;
         }
         checkNewCapacity(newCapacity);
+        //检查当前的 ByteBuf 是否是池化的
         if (!chunk.unpooled) {
             // If the request capacity does not require reallocation, just update the length of the memory.
+            //如果申请的容量大于当前容量，直接更新length即可
             if (newCapacity > length) {
                 if (newCapacity <= maxLength) {
                     length = newCapacity;
                     return this;
                 }
+               //如果申请的容量比当前容量小，但大于最大容量的一半且接近最大容量，直接更新索引位置，因为回收老内存不划算
             } else if (newCapacity > maxLength >>> 1 &&
                     (maxLength > 512 || newCapacity > maxLength - 16)) {
                 // here newCapacity < length
@@ -115,8 +118,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
                 return this;
             }
         }
-
-        //重新分配：申请新的容量，释放老的容量
+        //这种情况会释放老的内存，申请新内存
         chunk.arena.reallocate(this, newCapacity, true);
         return this;
     }
@@ -170,7 +172,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             final long handle = this.handle;
             this.handle = -1;
             memory = null;
-            chunk.arena.free(chunk, tmpNioBuf, handle, maxLength, cache,"deallocate");
+            chunk.arena.free(chunk, tmpNioBuf, handle, maxLength, cache, "deallocate");
             tmpNioBuf = null;
             chunk = null;
             recycle();
@@ -215,7 +217,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
     @Override
     public final ByteBuffer[] nioBuffers(int index, int length) {
-        return new ByteBuffer[] { nioBuffer(index, length) };
+        return new ByteBuffer[]{nioBuffer(index, length)};
     }
 
     @Override

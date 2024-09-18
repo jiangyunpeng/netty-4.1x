@@ -49,11 +49,11 @@ public final class PoolThreadCache {
     final PoolArena<ByteBuffer> directArena;
 
     // Hold the caches for the different size classes, which are tiny, small and normal.
-    private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;
-    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;
+    private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;//默认32
+    private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;//默认4
+    private final MemoryRegionCache<byte[]>[] normalHeapCaches; //默认大小为3
     private final MemoryRegionCache<ByteBuffer>[] tinySubPageDirectCaches;
     private final MemoryRegionCache<ByteBuffer>[] smallSubPageDirectCaches;
-    private final MemoryRegionCache<byte[]>[] normalHeapCaches;
     private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;
 
     // Used for bitshifting when calculate the index of normal caches later
@@ -99,7 +99,7 @@ public final class PoolThreadCache {
             smallSubPageHeapCaches = createSubPageCaches(
                     smallCacheSize, heapArena.numSmallSubpagePools, SizeClass.Small);
 
-            numShiftsNormalHeap = log2(heapArena.pageSize);
+            numShiftsNormalHeap = log2(heapArena.pageSize);//8k的对数13，因为2^13=8k
             normalHeapCaches = createNormalCaches(
                     normalCacheSize, maxCachedBufferCapacity, heapArena);
 
@@ -145,7 +145,7 @@ public final class PoolThreadCache {
             @SuppressWarnings("unchecked")
             MemoryRegionCache<T>[] cache = new MemoryRegionCache[arraySize];
             for (int i = 0; i < cache.length; i++) {
-                cache[i] = new NormalMemoryRegionCache<T>(cacheSize);
+                cache[i] = new NormalMemoryRegionCache<T>(cacheSize);//cacheSize为64
             }
             return cache;
         } else {
@@ -329,13 +329,15 @@ public final class PoolThreadCache {
             int idx = log2(normCapacity >> numShiftsNormalDirect);
             return cache(normalDirectCaches, idx);
         }
-        //normCapacity >> numShiftsNormalHeap相当于除8k
+        //normCapacity除以8k，比如64k/8k=8，log2(8)=3
         int idx = log2(normCapacity >> numShiftsNormalHeap);
         //SourceLogger.debug(this.getClass(), "get Normal MemoryRegionCache normCapacity={}, idx={}", normCapacity, idx);
         return cache(normalHeapCaches, idx);
     }
 
     private static <T> MemoryRegionCache<T> cache(MemoryRegionCache<T>[] cache, int idx) {
+        //如果idx超过2则返回
+        // 相当于申请的大小不能超过 8k<<2，即不能超过32k
         if (cache == null || idx > cache.length - 1) {
             return null;
         }
@@ -363,7 +365,7 @@ public final class PoolThreadCache {
      * Cache used for buffers which are backed by NORMAL size.
      */
     private static final class NormalMemoryRegionCache<T> extends MemoryRegionCache<T> {
-        NormalMemoryRegionCache(int size) {
+        NormalMemoryRegionCache(int size) {//默认是64
             super(size, SizeClass.Normal);
         }
 
@@ -416,7 +418,7 @@ public final class PoolThreadCache {
             if (entry == null) {
                 return false;
             }
-            SourceLogger.debug(this.getClass(), "allocate by cache {}", reqCapacity);
+            SourceLogger.info(this.getClass(), "allocate by cache {}", reqCapacity);
             initBuf(entry.chunk, entry.nioBuffer, entry.handle, buf, reqCapacity, threadCache);
             entry.recycle();
 

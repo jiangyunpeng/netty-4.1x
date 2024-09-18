@@ -1,4 +1,4 @@
-mvn clean package -Dmaven.test.skip=true -pl buffer,common
+mvn clean package -Dmaven.test.skip=true -pl buffer,common,transport
 
 cp buffer/target/netty-buffer-4.1.49.Final.jar  /data/program/es/elasticsearch-7.11.2/modules/transport-netty4/netty-buffer-4.1.49.Final.jar
 cp buffer/target/netty-buffer-4.1.49.Final.jar /data/program/es/elasticsearch-7.11.2/modules/x-pack-core/netty-buffer-4.1.49.Final.jar 

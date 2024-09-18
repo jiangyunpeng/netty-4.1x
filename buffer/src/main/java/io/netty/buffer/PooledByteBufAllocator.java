@@ -18,7 +18,7 @@ package io.netty.buffer;
 
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
-import io.netty.buffer.metric.NettyBufferMetric;
+import io.netty.buffer.metric.NettyMetric;
 import io.netty.util.NettyRuntime;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -265,7 +265,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         if (nHeapArena > 0) {
             heapArenas = newArenaArray(nHeapArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(heapArenas.length);
-            for (int i = 0; i < heapArenas.length; i ++) {
+            for (int i = 0; i < heapArenas.length; i++) {
                 PoolArena.HeapArena arena = new PoolArena.HeapArena(this,
                         pageSize, maxOrder, pageShifts, chunkSize,
                         directMemoryCacheAlignment);
@@ -281,7 +281,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         if (nDirectArena > 0) {
             directArenas = newArenaArray(nDirectArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(directArenas.length);
-            for (int i = 0; i < directArenas.length; i ++) {
+            for (int i = 0; i < directArenas.length; i++) {
                 PoolArena.DirectArena arena = new PoolArena.DirectArena(
                         this, pageSize, maxOrder, pageShifts, chunkSize, directMemoryCacheAlignment);
                 directArenas[i] = arena;
@@ -293,7 +293,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             directArenaMetrics = Collections.emptyList();
         }
         metric = new PooledByteBufAllocatorMetric(this);
-        NettyBufferMetric.registerAllocator(this);
+        NettyMetric.registerAllocator(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -321,7 +321,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
         // Ensure the resulting chunkSize does not overflow.
         int chunkSize = pageSize;
-        for (int i = maxOrder; i > 0; i --) {
+        for (int i = maxOrder; i > 0; i--) {
             if (chunkSize > MAX_CHUNK_SIZE / 2) {
                 throw new IllegalArgumentException(String.format(
                         "pageSize (%d) << maxOrder (%d) must not exceed %d", pageSize, maxOrder, MAX_CHUNK_SIZE));
@@ -616,20 +616,28 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     }
 
     public final long usedHeapMemory() {
-        return usedMemory(heapArenas);
+        return usedMemory(heapArenas, false);
+    }
+
+    public final long realUsedHeapMemory() {
+        return usedMemory(heapArenas, true);
     }
 
     final long usedDirectMemory() {
-        return usedMemory(directArenas);
+        return usedMemory(directArenas, false);
     }
 
-    private static long usedMemory(PoolArena<?>[] arenas) {
+    private static long usedMemory(PoolArena<?>[] arenas, boolean realUsed) {
         if (arenas == null) {
             return -1;
         }
         long used = 0;
         for (PoolArena<?> arena : arenas) {
-            used += arena.numActiveBytes();
+            if (realUsed) {
+                used += arena.numRealUsedBytes();
+            } else {
+                used += arena.numActiveBytes();
+            }
             if (used < 0) {
                 return Long.MAX_VALUE;
             }
@@ -638,7 +646,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     }
 
     final PoolThreadCache threadCache() {
-        PoolThreadCache cache =  threadCache.get();
+        PoolThreadCache cache = threadCache.get();
         assert cache != null;
         return cache;
     }
@@ -646,7 +654,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     /**
      * Trim thread local cache for the current {@link Thread}, which will give back any cached memory that was not
      * allocated frequently since the last trim operation.
-     *
+     * <p>
      * Returns {@code true} if a cache for the current {@link Thread} exists and so was trimmed, false otherwise.
      */
     public boolean trimCurrentThreadCache() {
@@ -669,7 +677,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                 .append(" heap arena(s):")
                 .append(StringUtil.NEWLINE);
         if (heapArenasLen > 0) {
-            for (PoolArena<byte[]> a: heapArenas) {
+            for (PoolArena<byte[]> a : heapArenas) {
                 buf.append(a);
             }
         }
@@ -677,10 +685,10 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         int directArenasLen = directArenas == null ? 0 : directArenas.length;
 
         buf.append(directArenasLen)
-           .append(" direct arena(s):")
-           .append(StringUtil.NEWLINE);
+                .append(" direct arena(s):")
+                .append(StringUtil.NEWLINE);
         if (directArenasLen > 0) {
-            for (PoolArena<ByteBuffer> a: directArenas) {
+            for (PoolArena<ByteBuffer> a : directArenas) {
                 buf.append(a);
             }
         }

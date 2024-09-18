@@ -137,4 +137,10 @@ public interface PoolArenaMetric {
      * Return the number of active bytes that are currently allocated by the arena.
      */
     long numActiveBytes();
+
+    /**
+     * Return the number of bytes that are really used by the arena.(Except free bytes)
+     * @return
+     */
+    long numRealUsedBytes();
 }

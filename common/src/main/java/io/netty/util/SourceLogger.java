@@ -35,6 +35,12 @@ public class SourceLogger {
     private static List<String> balckClassList = new ArrayList<>();
     private static List<String> balckPkgList = new ArrayList<>();
 
+    private static boolean debug = true;//是否关闭
+
+    public static void setDebug(boolean debug) {
+        SourceLogger.debug = debug;
+    }
+
     private static Filter BLACK_LOGGER_NAME = (logger, log) -> {
         if (logger == null) {
             return false;
@@ -136,17 +142,18 @@ public class SourceLogger {
             }
         }
 
-//        logQueue.add(log);
-//        System.out.println(log);
+        System.out.println(log);
 
     }
 
     public synchronized static void debug(Class type, String message, Object... args) {
+        if (!debug) {
+            return;
+        }
         String log = format(type, message, args);
         if (logQueue.size() < LOG_QUEUE_SIZE) {
-            //logQueue.add(log);
+            logQueue.add(log);
         }
-        System.out.println(log);
     }
 
     public synchronized static void info(Class type, String message, Object... args) {
@@ -217,13 +224,14 @@ public class SourceLogger {
         return sb.toString();
     }
 
-    private static String formatMDC(){
-        if(MDC.get("role")!=null){
-            return " [role="+MDC.get("role")+"] ";
-        }else{
+    private static String formatMDC() {
+        if (MDC.get("role") != null) {
+            return " [role=" + MDC.get("role") + "] ";
+        } else {
             return "";
         }
     }
+
     private static String formatIndent() {
         StringBuilder sb = new StringBuilder();
         Context ctx = null;
@@ -343,8 +351,8 @@ public class SourceLogger {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MDC.put("role","client");
-        SourceLogger.debug(SourceLogger.class,"test");
+        MDC.put("role", "client");
+        SourceLogger.debug(SourceLogger.class, "test");
     }
 
 

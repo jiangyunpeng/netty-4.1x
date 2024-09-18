@@ -6,17 +6,19 @@ import io.netty.buffer.toolkit.Action;
 import io.netty.buffer.toolkit.FormatUtils;
 import io.netty.buffer.toolkit.HttpEndpoint;
 import io.netty.buffer.toolkit.TableBuilder;
+import io.netty.util.SourceLogger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class NettyBufferMetric {
+public class NettyMetric {
 
     private static final List<PooledByteBufAllocator> allocators = new ArrayList<>();
 
     static {
-        HttpEndpoint.getInstance().registerAction(new AllocatorMetricAction("netty", "/allocator/metric"));
+        HttpEndpoint.getInstance().registerAction(new AllocatorMetricAction("netty", "/netty/allocator"));
+        HttpEndpoint.getInstance().registerAction(new LogAction("netty", "/netty/log"));
     }
 
     public static void registerAllocator(PooledByteBufAllocator allocator) {
@@ -34,6 +36,7 @@ public class NettyBufferMetric {
                 "numThreadLocalCaches",
                 "chunkSize",
                 "usedHeapMemory",
+                "realUsedMemory",
         });
         for (int i = 0; i < allocators.size(); ++i) {
             PooledByteBufAllocator allocator = allocators.get(i);
@@ -48,7 +51,8 @@ public class NettyBufferMetric {
                     String.valueOf(allocator.normalCacheSize()),//normal缓存队列的大小
                     String.valueOf(allocator.numThreadLocalCaches()),
                     FormatUtils.humanReadableByteSize(allocator.chunkSize()),
-                    FormatUtils.humanReadableByteSize(allocator.usedHeapMemory())
+                    FormatUtils.humanReadableByteSize(allocator.usedHeapMemory()),
+                    FormatUtils.humanReadableByteSize(allocator.realUsedHeapMemory())
             );
 
         }
@@ -95,6 +99,27 @@ public class NettyBufferMetric {
         return tableBuilder.toString();
     }
 
+    public static class LogAction extends Action {
+
+        public LogAction(String artifact, String path) {
+            super(artifact, path);
+        }
+
+        @Override
+        public String execute(Map<String, String> params) throws IllegalArgumentException {
+            String debug = params.get("debug");
+            if(debug==null){
+                return "require params eg: ?debug=false";
+            }
+            if (debug.equals("true")) {
+                SourceLogger.setDebug(true);
+            } else {
+                SourceLogger.setDebug(false);
+            }
+            return "logger set " + debug;
+        }
+    }
+
     public static class AllocatorMetricAction extends Action {
 
         public AllocatorMetricAction(String artifact, String path) {
@@ -118,7 +143,6 @@ public class NettyBufferMetric {
             Meter poolTiny = MetricRegistry.group("allocator").entry("pool").meter("tiny");
             Meter poolSmall = MetricRegistry.group("allocator").entry("pool").meter("small");
 
-            Meter chunkNormal = MetricRegistry.group("allocator").entry("chunk").meter("normal");
             Meter reqBytes = MetricRegistry.group("allocator").entry("arena").meter("reqBytes");
             Meter reqCount = MetricRegistry.group("allocator").entry("arena").meter("reqCount");
             Meter normBytes = MetricRegistry.group("allocator").entry("arena").meter("normBytes");//norm只需要统计bytes
@@ -137,7 +161,6 @@ public class NettyBufferMetric {
                     "arenaNormal",
                     "poolTiny",
                     "poolSmall",
-                    "chunkNormal",
                     "reqBytes",
                     "reqCount",
                     "normalBytes",
@@ -147,15 +170,14 @@ public class NettyBufferMetric {
 
             tableBuilder.addRow(
                     "Count:",
-                    cacheTiny.getCount()+"-"+ FormatUtils.percentX(cacheTiny.getCount() / (reqCount.getCount() * 1.0f)) + "%",
-                    String.valueOf(cacheSmall.getCount()),
+                    cacheTiny.getCount() + "-" + FormatUtils.percentX(cacheTiny.getCount() / (reqCount.getCount() * 1.0f)) + "%",
+                    cacheSmall.getCount() + "-" + FormatUtils.percentX(cacheSmall.getCount() / (reqCount.getCount() * 1.0f)) + "%",
                     cacheNormal.getCount() + "-" + FormatUtils.percentX(cacheNormal.getCount() / (reqCount.getCount() * 1.0f)) + "%",
-                    arenaTiny.getCount()+ "-" + FormatUtils.percentX(arenaTiny.getCount() / (reqCount.getCount() * 1.0f)) + "%",
-                    String.valueOf(arenaSmall.getCount()),
+                    arenaTiny.getCount() + "-" + FormatUtils.percentX(arenaTiny.getCount() / (reqCount.getCount() * 1.0f)) + "%",
+                    arenaSmall.getCount() + "-" + FormatUtils.percentX(arenaSmall.getCount() / (reqCount.getCount() * 1.0f)) + "%",
                     arenaNormal.getCount() + "-" + FormatUtils.percentX(arenaNormal.getCount() / (reqCount.getCount() * 1.0f)) + "%",
-                    String.valueOf(poolTiny.getCount()),
-                    String.valueOf(poolSmall.getCount()),
-                    chunkNormal.getCount() + "-" + FormatUtils.percentX(chunkNormal.getCount() / (reqCount.getCount() * 1.0f)) + "%",
+                    poolTiny.getCount() + "-" + FormatUtils.percentX(poolTiny.getCount() / (reqCount.getCount() * 1.0f)) + "%",
+                    poolSmall.getCount() + "-" + FormatUtils.percentX(poolSmall.getCount() / (reqCount.getCount() * 1.0f)) + "%",
                     FormatUtils.humanReadableByteSize(reqBytes.getCount()),
                     String.valueOf(reqCount.getCount()),
                     FormatUtils.humanReadableByteSize(normBytes.getCount()),
@@ -172,11 +194,10 @@ public class NettyBufferMetric {
                     String.valueOf(FormatUtils.roundx1(arenaNormal.getOneMinuteRate())),
                     String.valueOf(FormatUtils.roundx1(poolTiny.getOneMinuteRate())),
                     String.valueOf(FormatUtils.roundx1(poolSmall.getOneMinuteRate())),
-                    String.valueOf(FormatUtils.roundx1(chunkNormal.getOneMinuteRate())),
                     FormatUtils.humanReadableByteSize(Math.round(reqBytes.getOneMinuteRate())),
                     String.valueOf(FormatUtils.roundx1(reqCount.getOneMinuteRate())),
                     FormatUtils.humanReadableByteSize(Math.round(normBytes.getOneMinuteRate())),
-                    FormatUtils.roundx1(reqCount2.getOneMinuteRate())+"",
+                    FormatUtils.roundx1(reqCount2.getOneMinuteRate()) + "",
                     FormatUtils.humanReadableByteSize(Math.round(reqCount2.getOneMinuteRate()))
 
             );

@@ -136,7 +136,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         public final void read() {
             AbstractChannel channel =AbstractNioByteChannel.this;
             InetSocketAddress localAddress = (InetSocketAddress) channel.localAddress();
-            if(localAddress.getPort()==9300 || localAddress.getPort()==9200){
+            if(localAddress.getPort()<10000){
                 SourceLogger.MDC.put("role","server");
             }else{
                 SourceLogger.MDC.put("role","client");
