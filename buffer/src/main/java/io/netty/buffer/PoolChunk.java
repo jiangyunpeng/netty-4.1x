@@ -235,10 +235,10 @@ final class PoolChunk<T> implements PoolChunkMetric {
         final long handle;
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
             handle = allocateRun(normCapacity);//handle就是在二叉树中的索引，从根节点开始
-            SourceLogger.info(this.getClass(), "allocate run from chunk normSize:{} handle:{}", normCapacity, handle);
+            //SourceLogger.info(this.getClass(), "allocate run from chunk normSize:{} handle:{}", normCapacity, handle);
         } else {
             handle = allocateSubpage(normCapacity);
-            SourceLogger.info(this.getClass(), "allocate page from chunk normSize:{} ", normCapacity);
+            //SourceLogger.info(this.getClass(), "allocate page from chunk normSize:{} ", normCapacity);
         }
         //如果小于0表示分配失败
         if (handle < 0) {

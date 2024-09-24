@@ -336,7 +336,7 @@ public final class PoolThreadCache {
     }
 
     private static <T> MemoryRegionCache<T> cache(MemoryRegionCache<T>[] cache, int idx) {
-        //如果idx超过2则返回
+        //对于normal类型数组大小只有3，如果idx>2则返回null
         // 相当于申请的大小不能超过 8k<<2，即不能超过32k
         if (cache == null || idx > cache.length - 1) {
             return null;

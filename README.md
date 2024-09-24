@@ -1,6 +1,8 @@
 ## 改动点
 
 1、新增 ByteBufAllocator metrics
+
+http://172.16.49.101:8864/netty/allocator
 ![](doc/metrics.png)
 
 2、新增 NettyAllocatorTest

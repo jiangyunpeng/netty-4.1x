@@ -35,78 +35,7 @@
   </properties>
 
   <profiles>
-    <!-- If the uber profile is used it will automatically fetch the missing native jar from maven and add it to the all jar as well. -->
-    <profile>
-      <id>uber-staging</id>
-      <repositories>
-        <repository>
-          <id>staged-releases</id>
-          <name>Staged Releases</name>
-          <url>https://oss.sonatype.org/service/local/repositories/${stagingRepositoryId}/content/</url>
-        </repository>
-      </repositories>
 
-      <dependencies>
-        <!-- Depend on all our native jars -->
-        <!-- As this is executed on either macOS or Linux we directly need to specify the classifier -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-epoll</artifactId>
-          <version>${project.version}</version>
-          <classifier>linux-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-kqueue</artifactId>
-          <version>${project.version}</version>
-          <classifier>osx-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-resolver-dns-native-macos</artifactId>
-          <version>${project.version}</version>
-          <classifier>osx-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>uber-snapshot</id>
-
-      <dependencies>
-        <!-- Depend on all our native jars -->
-        <!-- As this is executed on either macOS or Linux we directly need to specify the classifier -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-epoll</artifactId>
-          <version>${project.version}</version>
-          <classifier>linux-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-kqueue</artifactId>
-          <version>${project.version}</version>
-          <classifier>osx-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-resolver-dns-native-macos</artifactId>
-          <version>${project.version}</version>
-          <classifier>osx-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-      </dependencies>
-    </profile>
 
     <!-- The linux profile will only include the native jar for epol to the all jar.
          If you want to also include the native jar for kqueue use -Puber.
@@ -145,100 +74,8 @@
         </dependency>
       </dependencies>
     </profile>
-    <!-- The mac, openbsd and freebsd  profile will only include the native jar for epol to the all jar.
-         If you want to also include the native jar for kqueue use -Puber.
-    -->
-    <profile>
-      <id>mac</id>
-      <activation>
-        <os>
-          <family>mac</family>
-        </os>
-      </activation>
-      <dependencies>
-        <!-- All release modules -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-kqueue</artifactId>
-          <version>${project.version}</version>
-          <classifier>${jni.classifier}</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-resolver-dns-native-macos</artifactId>
-          <version>${project.version}</version>
-          <classifier>osx-x86_64</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-epoll</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>freebsd</id>
-      <activation>
-        <os>
-          <family>unix</family>
-          <name>freebsd</name>
-        </os>
-      </activation>
-      <dependencies>
-        <!-- All release modules -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-kqueue</artifactId>
-          <version>${project.version}</version>
-          <classifier>${jni.classifier}</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-epoll</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>openbsd</id>
-      <activation>
-        <os>
-          <family>unix</family>
-          <name>openbsd</name>
-        </os>
-      </activation>
-      <dependencies>
-        <!-- All release modules -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-kqueue</artifactId>
-          <version>${project.version}</version>
-          <classifier>${jni.classifier}</classifier>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>netty-transport-native-epoll</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-          <optional>true</optional>
-        </dependency>
-      </dependencies>
-    </profile>
+
+
 
     <profile>
       <id>full</id>
@@ -314,46 +151,10 @@
         </plugins>
       </build>
     </profile>
-    <profile>
-      <id>coverage</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>jacoco-merge</id>
-                <phase>prepare-package</phase>
-                <goals>
-                  <goal>merge</goal>
-                </goals>
-                <configuration>
-                  <fileSets>
-                    <fileSet>
-                      <directory>${project.parent.build.directory}/..</directory>
-                      <includes>
-                        <include>**/target/jacoco.exec</include>
-                      </includes>
-                    </fileSet>
-                  </fileSets>
-                </configuration>
-              </execution>
-              <execution>
-                <id>jacoco-report</id>
-                <phase>prepare-package</phase>
-                <goals>
-                  <goal>report</goal>
-                </goals>
-                <configuration>
-                  <outputDirectory>${project.build.directory}/jacoco-report</outputDirectory>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
+
+
+
+
   </profiles>
 
   <dependencies>
@@ -380,13 +181,13 @@
       <scope>compile</scope>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-haproxy</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-haproxy</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-codec-http</artifactId>
@@ -394,62 +195,62 @@
       <scope>compile</scope>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-http2</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-memcache</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-mqtt</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-redis</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-smtp</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-socks</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-stomp</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-codec-xml</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-http2</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-memcache</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-mqtt</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-redis</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-smtp</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-socks</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-stomp</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-codec-xml</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-common</artifactId>
@@ -464,13 +265,13 @@
       <scope>compile</scope>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-handler-proxy</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-handler-proxy</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-resolver</artifactId>
@@ -492,34 +293,34 @@
       <scope>compile</scope>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-transport-rxtx</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-transport-sctp</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-transport-udt</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-example</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-      <optional>true</optional>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-transport-rxtx</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-transport-sctp</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-transport-udt</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>netty-example</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--      <scope>compile</scope>-->
+<!--      <optional>true</optional>-->
+<!--    </dependency>-->
 
     <!-- Add optional dependencies explicitly to avoid Javadoc warnings and errors. -->
     <dependency>

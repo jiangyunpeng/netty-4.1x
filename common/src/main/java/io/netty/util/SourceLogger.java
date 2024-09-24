@@ -142,7 +142,7 @@ public class SourceLogger {
             }
         }
 
-        System.out.println(log);
+        //System.out.println(log);
 
     }
 
@@ -215,7 +215,7 @@ public class SourceLogger {
             sb.append(formatClass(type));
             sb.append(SPLIT1);
         }
-        sb.append(formatMDC());
+        //sb.append(formatMDC());
         try {
             sb.append(MessageFormatter.arrayFormat(message, args));
         } catch (Exception e) {

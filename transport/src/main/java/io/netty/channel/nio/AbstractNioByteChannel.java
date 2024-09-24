@@ -142,25 +142,36 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 SourceLogger.MDC.put("role","client");
             }
             final ChannelConfig config = config();
+            // 检查是否应该中断读就绪状态（例如某些特殊情况，如自动读取关闭或配置不允许继续读取）
             if (shouldBreakReadReady(config)) {
                 clearReadPending();
                 return;
             }
             final ChannelPipeline pipeline = pipeline();
             final ByteBufAllocator allocator = config.getAllocator();
+            // 获取用于管理 ByteBuf 分配和读取的句柄，默认是 AdaptiveRecvByteBufAllocator
             final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
+            // 重置句柄状态，为新一轮的读取操作做准备
             allocHandle.reset(config);
 
             ByteBuf byteBuf = null;
             boolean close = false;
             try {
                 do {
+                    // 分配一个 ByteBuf，用于存放读取到的数据
                     byteBuf = allocHandle.allocate(allocator);
+
+                    // 从通道中读取数据，并将读取的字节数存储到句柄中
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
+
+                    // 如果没有读取到数据
                     if (allocHandle.lastBytesRead() <= 0) {
                         // nothing was read. release the buffer.
+                        // 释放分配的 ByteBuf
                         byteBuf.release();
                         byteBuf = null;
+
+                        // 如果读取结果小于 0，表示读取到 EOF（结束符），需要关闭通道
                         close = allocHandle.lastBytesRead() < 0;
                         if (close) {
                             // There is nothing left to read as we received an EOF.
@@ -169,13 +180,22 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                         break;
                     }
 
+                    // 增加读取消息的计数器
                     allocHandle.incMessagesRead(1);
-                    readPending = false;
-                    pipeline.fireChannelRead(byteBuf);
-                    byteBuf = null;
-                } while (allocHandle.continueReading());
 
+                    // 读取成功，重置读取挂起标志
+                    readPending = false;
+
+                    // 将读取到的数据传递到管道中，触发 channelRead 事件
+                    pipeline.fireChannelRead(byteBuf);
+
+                    byteBuf = null; // 将 ByteBuf 置为 null，以便进行下一次循环读取
+                } while (allocHandle.continueReading());// 检查是否应该继续读取
+
+                // 读取完成后，调用句柄的 readComplete 方法
                 allocHandle.readComplete();
+
+                // 触发管道中的 channelReadComplete 事件，表示读取操作完成
                 pipeline.fireChannelReadComplete();
 
                 if (close) {
