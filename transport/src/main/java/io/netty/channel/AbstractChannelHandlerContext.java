@@ -355,12 +355,14 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     @Override
     public ChannelHandlerContext fireChannelRead(final Object msg) {
+        //添加的日志
         String name = null;
         if (this instanceof DefaultChannelHandlerContext) {
             DefaultChannelHandlerContext hc = (DefaultChannelHandlerContext) this;
             name = "["+hc.name()+","+hc.handler().getClass().getSimpleName()+"]";
         }
         SourceLogger.info(this.getClass(), name + " fireChannelRead msg:{}",msg.getClass().getSimpleName());
+        //添加的日志
         invokeChannelRead(findContextInbound(MASK_CHANNEL_READ), msg);
         return this;
     }

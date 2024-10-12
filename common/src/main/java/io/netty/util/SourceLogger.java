@@ -5,6 +5,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -29,13 +31,12 @@ public class SourceLogger {
     private static final BlockingQueue<String> logQueue = new ArrayBlockingQueue<>(LOG_QUEUE_SIZE);
     private static final AtomicLong seq = new AtomicLong();
     private static final ThreadLocal<Context> localContext = new ThreadLocal<>();
-    private static File logFile;
-    private static BufferedWriter writer;
+    private static final Appender appender = new Appender();
 
     private static List<String> balckClassList = new ArrayList<>();
     private static List<String> balckPkgList = new ArrayList<>();
 
-    private static boolean debug = true;//是否关闭
+    private static boolean debug = false;//是否开启debug，默认不打开
 
     public static void setDebug(boolean debug) {
         SourceLogger.debug = debug;
@@ -76,7 +77,7 @@ public class SourceLogger {
 
         try {
             blackFilters.add(BLACK_LOGGER_NAME);
-            init();
+            appender.init();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -84,37 +85,10 @@ public class SourceLogger {
     }
 
     interface Filter {
-        boolean filter(Class logger, String message);
+        boolean filter(Class<?> logger, String message);
     }
 
-    private static void init() throws FileNotFoundException {
-        File logDir = new File(System.getProperty("user.dir"), "logs");
-        logDir.mkdirs();
-        logFile = new File(logDir, "netty_source.log");
-        System.out.println("logFile path: " + logFile);
-
-        writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(logFile)));
-        Thread t = new Thread(() -> {
-            while (true) {
-                try {
-                    write(true);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        t.setName("SourceLogger-Write-Thread");
-        t.setDaemon(true);
-        t.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                write(false);
-                writer.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }));
-    }
+   
 
     private static void write(boolean block) throws Exception {
         List<String> parcel = new ArrayList<String>();
@@ -124,9 +98,9 @@ public class SourceLogger {
         }
         logQueue.drainTo(parcel);
         for (String log : parcel) {
-            writer.write(log + "\r\n");
+            appender.append(log + "\r\n");
         }
-        writer.flush();
+        appender.flush();
     }
 
     public synchronized static void info(String message, Object... args) {
@@ -134,7 +108,7 @@ public class SourceLogger {
     }
 
 
-    private static void doWrite(Class logger, String log) {
+    private static void doWrite(Class<?> logger, String log) {
 
         for (Filter filter : blackFilters) {
             if (filter.filter(logger, log)) {
@@ -146,7 +120,7 @@ public class SourceLogger {
 
     }
 
-    public synchronized static void debug(Class type, String message, Object... args) {
+    public synchronized static void debug(Class<?> type, String message, Object... args) {
         if (!debug) {
             return;
         }
@@ -156,15 +130,15 @@ public class SourceLogger {
         }
     }
 
-    public synchronized static void info(Class type, String message, Object... args) {
+    public synchronized static void info(Class<?> type, String message, Object... args) {
         doWrite(type, format(type, message, args));
     }
 
-    public synchronized static void error(Class type, String message, Object... args) {
+    public synchronized static void error(Class<?> type, String message, Object... args) {
         doWrite(type, format(type, message, args));
     }
 
-    public synchronized static void error(Class type, String message, Throwable e) {
+    public synchronized static void error(Class<?> type, String message, Throwable e) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
@@ -351,10 +325,93 @@ public class SourceLogger {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        MDC.put("role", "client");
-        SourceLogger.debug(SourceLogger.class, "test");
+        //MDC.put("role", "client");
+        while(true){
+            SourceLogger.debug(SourceLogger.class, "test");
+        }
     }
 
+    static class Appender{
+        private static final long MAX_FILE_SIZE = 1024*1024*100;
+        private static final int MAX_RETAIN_COUNT = 5;
+        private static final String LOG_FILE_NAME = "netty_source.log";
+        private static final String LOG_FILE_PATTERN = "netty_source_%s.log";
+        private static File logDir;
+        private static File logFile;
+        private static BufferedWriter writer;
+        private AtomicLong byteSize = new AtomicLong();
 
+        void init() throws FileNotFoundException {
+            logDir= new File(System.getProperty("user.dir"), "logs");
+            logDir.mkdirs();
+            logFile = new File(logDir, LOG_FILE_NAME);
+            System.out.println("logFile path: " + logFile);
+    
+            writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(logFile)));
+            Thread t = new Thread(() -> {
+                while (true) {
+                    try {
+                        write(true);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            t.setName("SourceLogger-Appender-Thread");
+            t.setDaemon(true);
+            t.start();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    write(false);
+                    writer.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }));
+        }
+
+        public void append(String log) throws IOException{
+            byteSize.addAndGet(log.getBytes().length);
+            if (byteSize.get() >= MAX_FILE_SIZE) {
+                rotateLogFile();
+                byteSize.set(  0);
+            }
+            writer.write(log);
+        }
+
+    private void rotateLogFile() throws IOException {
+        //关闭当前日志文件
+        writer.close();
+        
+        //删除编号最大的文件
+		final int maxBackupIndex = MAX_RETAIN_COUNT;
+        File toDelete = new File(logDir,String.format(LOG_FILE_PATTERN,maxBackupIndex));
+        if (toDelete.exists()) {
+            toDelete.delete();
+        }
+
+        //依次从命名
+        for (int i = maxBackupIndex-1; i > 0; i--) {
+            File oldLogFile = new File(logDir,String.format(LOG_FILE_PATTERN,i));
+            if (oldLogFile.exists()) {
+                System.out.println("rename " + oldLogFile.getPath() + " to " + String.format(LOG_FILE_PATTERN,i+1));
+                oldLogFile.renameTo(new File(logDir,String.format(LOG_FILE_PATTERN,i+1)));
+            }
+        }
+
+        //重命名日志文件
+        String newLogFileName = String.format(LOG_FILE_PATTERN,"1");
+        System.out.println("rename " + logFile + " to " + newLogFileName);
+        logFile.renameTo(new File(logDir,newLogFileName));
+
+        //重新创建日志文件
+        logFile = new File(logDir,LOG_FILE_NAME);
+        writer = new BufferedWriter(new FileWriter(logFile, true));
+    }
+
+        public void flush() throws IOException{
+            writer.flush();
+        }
+    }
 }
 

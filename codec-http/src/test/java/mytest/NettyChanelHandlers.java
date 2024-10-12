@@ -17,6 +17,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
+import net.bytebuddy.agent.ByteBuddyAgent.AttachmentProvider.Accessor.Simple;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +89,7 @@ public class NettyChanelHandlers {
     }
 
     @Sharable
-    public static class HttpRequestHandler extends ChannelDuplexHandler {
+    public static class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
         private boolean async;
 
         public HttpRequestHandler(boolean async) {
@@ -95,21 +97,8 @@ public class NettyChanelHandlers {
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
-            try{
-                channelRead0(ctx,obj);
-            }finally {
-                ReferenceCountUtil.release(obj);
-            }
-
-        }
-
-        protected void channelRead0(ChannelHandlerContext ctx, Object obj) throws Exception {
-            FullHttpRequest request = (FullHttpRequest) obj;
-//            log.info("Receive uri: {}", request.uri());
-//            log.info("Receive content: {}", request.content().toString(CharsetUtil.UTF_8));
-//            log.info("request.content().alloc: {}", request.content());
-
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
+    
             if (!async) {
                 NettyUtil.writeOk(ctx);
                 return;
@@ -130,30 +119,13 @@ public class NettyChanelHandlers {
                 NettyUtil.writeOk(ctx);
             });
         }
-    }
 
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        log.info("execute write....");
-
-        ctx.write(msg, promise);
     }
 
     public static ChannelHandler httpHandler(boolean async) {
         return new HttpRequestHandler(async);
     }
 
-    private static ChannelHandler asyncHttpHandler() {
-
-        return new SimpleChannelInboundHandler<Object>() {
-            protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
-                FullHttpRequest request = (FullHttpRequest) msg;
-                log.info("Receive uri: {}", request.uri());
-                log.info("Receive content: {}", request.content().toString(CharsetUtil.UTF_8));
-
-
-            }
-        };
-    }
 
     private static ChannelHandler reuseEventLoopHandler() {
         return new SimpleChannelInboundHandler<FullHttpRequest>() {

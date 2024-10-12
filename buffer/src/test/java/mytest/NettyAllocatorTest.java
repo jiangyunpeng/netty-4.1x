@@ -6,8 +6,6 @@ import io.netty.buffer.PoolThreadCache;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.toolkit.FormatUtils;
 import io.netty.util.SourceLogger;
-import io.netty.util.internal.LongCounter;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -41,7 +39,7 @@ public class NettyAllocatorTest {
         System.out.println("==================small======================");
         //当需要的size>=512时，size向上规格化，及513->1024, 1000->1024
 
-        int[] reqCapacities2 = {1024+1, 1024*2+1, 1024*4+1};
+        int[] reqCapacities2 = {1024 + 1, 1024 * 2 + 1, 1024 * 4 + 1};
         for (int i = 0; i < reqCapacities2.length; i++) {
             System.out.println(reqCapacities2[i] + "=>" + arena.normalizeCapacity(reqCapacities2[i]));
         }
@@ -61,22 +59,21 @@ public class NettyAllocatorTest {
     }
 
     @Test
-    public void test101() {
-        //chunk容量只有128kb
-        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(4);
+    public void testTLAB() {
         //测试相同规格的ThreadCache复用
-        ByteBuf byteBuf = null;
-        byteBuf = byteBufAllocator.buffer(16);
-        byteBuf.release();
-        System.out.println("========================");
-        byteBuf = byteBufAllocator.buffer(16);
-        byteBuf.release();
-    }
-
-    @Test
-    public void test102() {
         PooledByteBufAllocator byteBufAllocator = NettyAllocator.get();
+        ByteBuf byteBuf = null;
+        byteBuf = byteBufAllocator.buffer(32*1024);
+        byteBuf.release();
+        System.out.println("========================");
+        byteBuf = byteBufAllocator.buffer(32*1024);
+        byteBuf.release();
+    }
+
+    @Test
+    public void testTLAB2() {
         //64kb 无法复用ThreadCache,因为ThreadCache最大限制32kb
+        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get();
         ByteBuf byteBuf = null;
         byteBuf = byteBufAllocator.buffer(64 * 1024);
         byteBuf.release();
@@ -86,10 +83,9 @@ public class NettyAllocatorTest {
     }
 
     @Test
-    public void test103() {
-        //chunk容量只有128kb
-        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(4);
+    public void testTLAB3() {
         //测试16kb无法从32kb的子节点分配
+        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(4);
         ByteBuf byteBuf = null;
         byteBuf = byteBufAllocator.buffer(32 * 1024);
         byteBuf = byteBufAllocator.buffer(16 * 1024);
@@ -100,13 +96,13 @@ public class NettyAllocatorTest {
     @Test
     public void testNormal() {
         //chunk容量只有64kb，二叉树数组结构[64，32，32,16,16,16,16,8,8...]
-        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(3,false);
+        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(3, false);
         //申请8k
-        ByteBuf byteBuf1= byteBufAllocator.buffer(1024*8);
+        ByteBuf byteBuf1 = byteBufAllocator.buffer(1024 * 8);
         //申请16k
-        ByteBuf byteBuf2= byteBufAllocator.buffer(1024*10);
+        ByteBuf byteBuf2 = byteBufAllocator.buffer(1024 * 10);
         //申请8k
-        ByteBuf byteBuf3= byteBufAllocator.buffer(1024*8);
+        ByteBuf byteBuf3 = byteBufAllocator.buffer(1024 * 8);
 
         byteBuf1.release();
         byteBuf3.release();
@@ -125,16 +121,16 @@ public class NettyAllocatorTest {
 
     @Test
     public void testSmall() {
-        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(4,false);
+        PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(4, false);
         //回收的PoolSubpage如何加入到链表
 
-        ByteBuf byteBuf1= byteBufAllocator.buffer(4*1024);
-        ByteBuf byteBuf2= byteBufAllocator.buffer(4*1024);//PoolSubpage不够用，会被移除
-        ByteBuf byteBuf3=byteBufAllocator.buffer(4*1024);//产生新的PoolSubpage
+        ByteBuf byteBuf1 = byteBufAllocator.buffer(4 * 1024);
+        ByteBuf byteBuf2 = byteBufAllocator.buffer(4 * 1024);//PoolSubpage不够用，会被移除
+        ByteBuf byteBuf3 = byteBufAllocator.buffer(4 * 1024);//产生新的PoolSubpage
         byteBuf1.release();
         byteBuf2.release();
 
-        byteBufAllocator.buffer(4*1024);
+        byteBufAllocator.buffer(4 * 1024);
     }
 
     @Test
@@ -143,9 +139,9 @@ public class NettyAllocatorTest {
         PooledByteBufAllocator byteBufAllocator = NettyAllocator.get(7);
         //如果和使用 ThreadLocalCache
 
-        ByteBuf byteBuf1= byteBufAllocator.buffer(32*1024);
+        ByteBuf byteBuf1 = byteBufAllocator.buffer(32 * 1024);
         byteBuf1.release();
-        ByteBuf byteBuf2= byteBufAllocator.buffer(32*1024);
+        ByteBuf byteBuf2 = byteBufAllocator.buffer(32 * 1024);
         byteBuf2.release();
     }
 
@@ -273,16 +269,24 @@ public class NettyAllocatorTest {
     }
 
     static class NettyAllocator {
+
+        /**
+         * default 1mb= 8k<<7
+         */
         public static PooledByteBufAllocator get() {
-            return get(7);//default 1mb= 8k<<7
-            // 128kb= 8k<<4
+            return get(7);
+
         }
 
+        /**
+         * // 8k<<4 = 128kb
+         * // 8k<<7 = 1mb
+         */
         public static PooledByteBufAllocator get(int maxOrder) {
-            return get(maxOrder,true);
+            return get(maxOrder, true);
         }
 
-        public static PooledByteBufAllocator get(int maxOrder,boolean useCache) {
+        public static PooledByteBufAllocator get(int maxOrder, boolean useCache) {
             int nHeapArena = PooledByteBufAllocator.defaultNumHeapArena();
             int pageSize = 8192;
             int tinyCacheSize = PooledByteBufAllocator.defaultTinyCacheSize();//tiny缓存池的大小默认512

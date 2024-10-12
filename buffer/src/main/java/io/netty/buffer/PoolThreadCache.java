@@ -81,6 +81,7 @@ public final class PoolThreadCache {
                     smallCacheSize, directArena.numSmallSubpagePools, SizeClass.Small);
 
             numShiftsNormalDirect = log2(directArena.pageSize);
+            //不管chunkSize多大，NormalCaches数组大小永远是3，原因内存大小不能超过maxCachedBufferCapacity，默认是32k
             normalDirectCaches = createNormalCaches(
                     normalCacheSize, maxCachedBufferCapacity, directArena);
 
@@ -139,7 +140,7 @@ public final class PoolThreadCache {
     private static <T> MemoryRegionCache<T>[] createNormalCaches(
             int cacheSize, int maxCachedBufferCapacity, PoolArena<T> area) {
         if (cacheSize > 0 && maxCachedBufferCapacity > 0) {
-            int max = Math.min(area.chunkSize, maxCachedBufferCapacity);//最大32kb
+            int max = Math.min(area.chunkSize, maxCachedBufferCapacity);//chunkSize和maxCachedBufferCapacity的最小只，所以是32kb
             int arraySize = Math.max(1, log2(max / area.pageSize) + 1);//3
 
             @SuppressWarnings("unchecked")

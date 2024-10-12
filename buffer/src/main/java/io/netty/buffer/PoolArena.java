@@ -241,6 +241,7 @@ public abstract class PoolArena<T> implements PoolArenaMetric {
                 //在chunk上分配，这里可能是tiny或small
                 allocateNormal(buf, reqCapacity, normCapacity, cache);
             }
+            //走到这里说明是首次分配PoolSubpage
             if (tiny) {
                 MetricRegistry.group("allocator").entry("arena").meter("tiny").mark();
             } else {
